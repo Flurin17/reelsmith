@@ -1,0 +1,18 @@
+{
+  "template": "Explainer",
+  "props": {
+    "topic": "bad-explainer",
+    "brand": { "colors": { "ink": "#d8d8d8", "inkMuted": "#e0e0e0" } },
+    "scenes": [
+      {
+        "id": "hook",
+        "duration": 30,
+        "headline": "A headline",
+        "body": "This body copy is far too long to read in the one second this scene is on screen, which the review should catch",
+        "voiceover": "missing/clip.mp3",
+        "captions": [{ "text": "late", "start": 0.2, "end": 2.5 }]
+      },
+      { "id": "img", "visual": { "type": "image", "image": "does-not-exist.png" } }
+    ]
+  }
+}

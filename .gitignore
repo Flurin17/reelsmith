@@ -1,0 +1,28 @@
+node_modules/
+.DS_Store
+*.log
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Outputs
+out/
+
+# Your working jobs and generated media (commit them in your fork if you want)
+jobs/*
+!jobs/.gitkeep
+public/voiceovers/*
+!public/voiceovers/.gitkeep
+
+# Third-party media: add licensed files locally; commit only redistributable ones
+public/music/*
+!public/music/README.md
+public/bg/*
+!public/bg/README.md
+public/products/*.source.*
+
+# Local scratch
+.legacy/
+.remotion/

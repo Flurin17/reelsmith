@@ -1,0 +1,15 @@
+{
+  "template": "ProductSpotlight",
+  "props": {
+    "hook": "Forty hours. *One* charge.",
+    "name": "Aurora Headphones",
+    "subtitle": "Wireless \u00b7 Noise cancelling",
+    "price": 149,
+    "features": [
+      "40 h battery",
+      "Adaptive noise cancelling",
+      "Memory-foam cushions"
+    ],
+    "image": "aurora-headphones.svg"
+  }
+}

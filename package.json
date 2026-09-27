@@ -1,0 +1,55 @@
+{
+  "name": "reelsmith",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brandable, data-driven short-form video generator (TikTok, Reels, Shorts) built on Remotion, with agent skills for Claude Code, Codex and friends.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "remotion",
+    "video",
+    "tiktok",
+    "reels",
+    "shorts",
+    "elevenlabs",
+    "agent-skills",
+    "claude-code"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "studio": "remotion studio",
+    "reelsmith": "tsx cli/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.56.0",
+    "@remotion/bundler": "4.0.484",
+    "@remotion/cli": "4.0.484",
+    "@remotion/media": "4.0.484",
+    "@remotion/renderer": "4.0.484",
+    "@remotion/transitions": "4.0.484",
+    "dotenv": "^16.4.5",
+    "mediabunny": "1.47.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.484",
+    "sharp": "^0.35.3",
+    "tsx": "^4.23.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.4"
+  }
+}

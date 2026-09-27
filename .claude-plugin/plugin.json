@@ -1,0 +1,10 @@
+{
+  "name": "reelsmith",
+  "version": "0.1.0",
+  "description": "Agent skills for producing on-brand short-form videos with Reelsmith: brand capture, template authoring, voiceover with synced captions, and a graded review loop.",
+  "author": { "name": "Flurin Laim", "url": "https://github.com/Flurin17" },
+  "homepage": "https://github.com/Flurin17/reelsmith",
+  "repository": "https://github.com/Flurin17/reelsmith",
+  "license": "MIT",
+  "keywords": ["video", "remotion", "tiktok", "reels", "shorts", "elevenlabs"]
+}

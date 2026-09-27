@@ -1,0 +1,286 @@
+{
+  "template": "Explainer",
+  "props": {
+    "topic": "explainer-headphones",
+    "scenes": [
+      {
+        "id": "hook",
+        "voiceover": "",
+        "kicker": "Quick guide",
+        "headline": "Headphones or speaker?",
+        "body": "The 20-second answer",
+        "voiceoverText": "[curious] Headphones or a speaker? Here is the twenty second answer.",
+        "dialogue": [],
+        "captions": [
+          {
+            "text": "Headphones",
+            "start": 0.15,
+            "end": 0.72,
+            "speaker": ""
+          },
+          {
+            "text": "or",
+            "start": 0.78,
+            "end": 0.99,
+            "speaker": ""
+          },
+          {
+            "text": "a",
+            "start": 1.05,
+            "end": 1.215,
+            "speaker": ""
+          },
+          {
+            "text": "speaker?",
+            "start": 1.275,
+            "end": 1.755,
+            "speaker": ""
+          },
+          {
+            "text": "Here",
+            "start": 1.815,
+            "end": 2.115,
+            "speaker": ""
+          },
+          {
+            "text": "is",
+            "start": 2.175,
+            "end": 2.385,
+            "speaker": ""
+          },
+          {
+            "text": "the",
+            "start": 2.445,
+            "end": 2.7,
+            "speaker": ""
+          },
+          {
+            "text": "twenty",
+            "start": 2.76,
+            "end": 3.15,
+            "speaker": ""
+          },
+          {
+            "text": "second",
+            "start": 3.21,
+            "end": 3.6,
+            "speaker": ""
+          },
+          {
+            "text": "answer.",
+            "start": 3.66,
+            "end": 4.095,
+            "speaker": ""
+          }
+        ],
+        "visual": {
+          "type": "versus",
+          "left": {
+            "label": "Headphones",
+            "image": "aurora-headphones.svg",
+            "note": ""
+          },
+          "right": {
+            "label": "Speaker",
+            "image": "pulse-speaker.svg",
+            "note": ""
+          }
+        }
+      },
+      {
+        "id": "why",
+        "voiceover": "",
+        "kicker": "Headphones",
+        "headline": "Built for long days",
+        "body": "",
+        "voiceoverText": "Good over-ear headphones seal out noise and stay comfortable for hours.",
+        "dialogue": [],
+        "captions": [
+          {
+            "text": "Good",
+            "start": 0.15,
+            "end": 0.45,
+            "speaker": ""
+          },
+          {
+            "text": "over-ear",
+            "start": 0.51,
+            "end": 0.99,
+            "speaker": ""
+          },
+          {
+            "text": "headphones",
+            "start": 1.05,
+            "end": 1.62,
+            "speaker": ""
+          },
+          {
+            "text": "seal",
+            "start": 1.68,
+            "end": 1.98,
+            "speaker": ""
+          },
+          {
+            "text": "out",
+            "start": 2.04,
+            "end": 2.295,
+            "speaker": ""
+          },
+          {
+            "text": "noise",
+            "start": 2.355,
+            "end": 2.7,
+            "speaker": ""
+          },
+          {
+            "text": "and",
+            "start": 2.76,
+            "end": 3.015,
+            "speaker": ""
+          },
+          {
+            "text": "stay",
+            "start": 3.075,
+            "end": 3.375,
+            "speaker": ""
+          },
+          {
+            "text": "comfortable",
+            "start": 3.435,
+            "end": 4.05,
+            "speaker": ""
+          },
+          {
+            "text": "for",
+            "start": 4.11,
+            "end": 4.365,
+            "speaker": ""
+          },
+          {
+            "text": "hours.",
+            "start": 4.425,
+            "end": 4.815,
+            "speaker": ""
+          }
+        ],
+        "visual": {
+          "type": "bullets",
+          "items": [
+            "Seals out noise",
+            "Bigger battery",
+            "All-day comfort"
+          ]
+        }
+      },
+      {
+        "id": "stat",
+        "voiceover": "",
+        "kicker": "Battery",
+        "headline": "Charge once a week",
+        "body": "",
+        "voiceoverText": "[excited] Forty hours of playback. That is one charge a week.",
+        "dialogue": [],
+        "captions": [
+          {
+            "text": "Forty",
+            "start": 0.15,
+            "end": 0.495,
+            "speaker": ""
+          },
+          {
+            "text": "hours",
+            "start": 0.555,
+            "end": 0.9,
+            "speaker": ""
+          },
+          {
+            "text": "of",
+            "start": 0.96,
+            "end": 1.17,
+            "speaker": ""
+          },
+          {
+            "text": "playback.",
+            "start": 1.23,
+            "end": 1.755,
+            "speaker": ""
+          },
+          {
+            "text": "That",
+            "start": 1.815,
+            "end": 2.115,
+            "speaker": ""
+          },
+          {
+            "text": "is",
+            "start": 2.175,
+            "end": 2.385,
+            "speaker": ""
+          },
+          {
+            "text": "one",
+            "start": 2.445,
+            "end": 2.7,
+            "speaker": ""
+          },
+          {
+            "text": "charge",
+            "start": 2.76,
+            "end": 3.15,
+            "speaker": ""
+          },
+          {
+            "text": "a",
+            "start": 3.21,
+            "end": 3.375,
+            "speaker": ""
+          },
+          {
+            "text": "week.",
+            "start": 3.435,
+            "end": 3.78,
+            "speaker": ""
+          }
+        ],
+        "visual": {
+          "type": "stat",
+          "value": 40,
+          "prefix": "",
+          "suffix": "h",
+          "label": "of playback"
+        }
+      },
+      {
+        "id": "cta",
+        "voiceover": "",
+        "kicker": "Compare them all on",
+        "headline": "",
+        "body": "",
+        "voiceoverText": "[warmly] Compare every model on our site.",
+        "dialogue": [],
+        "captions": [],
+        "visual": {
+          "type": "cta",
+          "button": "Go"
+        }
+      }
+    ],
+    "showCaptions": true,
+    "defaultSceneSeconds": 4,
+    "music": {
+      "file": "",
+      "volume": 0.3
+    },
+    "sfx": {
+      "hit": "hit.wav",
+      "swipe": "swipe.wav",
+      "tick": "tick.wav",
+      "pop": "pop.wav",
+      "ding": "ding.wav",
+      "boom": "boom.wav",
+      "whoosh": "whoosh.wav",
+      "riser": "riser.wav",
+      "volume": 0.55
+    }
+  }
+}
