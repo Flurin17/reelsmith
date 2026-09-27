@@ -1,14 +1,15 @@
 /**
- * `reelsmith make <Template>` builders: turn catalog data into a job file.
+ * `reelsmith make <Template>`: build a job from a brand's catalog.
  * Templates without a builder start from `reelsmith new` instead.
- *
  * Add a builder for your own template by adding an entry to BUILDERS.
  */
+import { DEFAULT_BRAND } from '../../brands';
 import { slugify } from '../../src/core/text';
 import { loadCatalog, selectProducts, SORTS, toItem, type Sort } from './catalog';
 import type { Job } from './jobs';
 
 export interface BuildArgs {
+  brand?: string;
   product?: string;
   hook?: string;
   ids?: string;
@@ -31,8 +32,8 @@ function parseSort(sort?: string): Sort | undefined {
 }
 
 /**
- * Rough first cut of feature chips from a description: split into clauses and
- * keep up to three short ones. Agents should rewrite them per the brand voice.
+ * Rough first cut of feature lines from a description: short clauses, max 3.
+ * Agents should rewrite them in the brand's voice.
  */
 export function featureLines(description: string): string[] {
   return description
@@ -45,19 +46,21 @@ export function featureLines(description: string): string[] {
 
 export const BUILDERS: Record<string, Builder> = {
   ProductSpotlight: {
-    usage: '--product <id> [--hook "Forty hours. *One* charge."]',
-    async build(args) {
-      if (!args.product) throw new Error('Pass --product <id> (see `reelsmith catalog`)');
-      const [p] = selectProducts(await loadCatalog(), { ids: [args.product] });
-      const item = await toItem(p, { refresh: args.refresh });
+    usage: '--product <id> [--hook "Forty hours. *Zero* noise."]',
+    async build(a) {
+      if (!a.product) throw new Error('Pass --product <id> (see `reelsmith catalog`)');
+      const brand = a.brand ?? DEFAULT_BRAND;
+      const [p] = selectProducts(await loadCatalog(brand), { ids: [a.product] });
+      const item = await toItem(p, { refresh: a.refresh });
       return {
-        slug: `spotlight-${slugify(p.id)}`,
+        slug: `${brand}-spotlight-${slugify(p.id)}`,
         job: {
           template: 'ProductSpotlight',
           props: {
-            hook: args.hook ?? '',
-            name: args.title ?? item.name,
-            subtitle: args.subtitle ?? item.category,
+            brand,
+            ...(a.hook ? { hook: a.hook } : {}),
+            name: a.title ?? item.name,
+            subtitle: a.subtitle ?? item.category,
             price: item.price,
             features: featureLines(item.description),
             image: item.image,
@@ -68,28 +71,30 @@ export const BUILDERS: Record<string, Builder> = {
   },
 
   TopList: {
-    usage:
-      '[--category <text>] [--ids a,b,c] [--count 5] [--sort price-desc|price-asc|name|catalog|random] [--title] [--subtitle]',
-    async build(args) {
-      const count = Number(args.count ?? 5);
+    usage: '[--category x] [--ids a,b] [--count 5] [--sort price-asc|price-desc|name|catalog|random]',
+    async build(a) {
+      const brand = a.brand ?? DEFAULT_BRAND;
+      const count = Number(a.count ?? 5);
       if (!Number.isInteger(count) || count < 1 || count > 10) throw new Error('--count must be 1–10');
-      const picked = selectProducts(await loadCatalog(), {
-        category: args.category,
-        ids: args.ids
+      const picked = selectProducts(await loadCatalog(brand), {
+        category: a.category,
+        ids: a.ids
           ?.split(',')
           .map((s) => s.trim())
           .filter(Boolean),
         count,
-        sort: parseSort(args.sort) ?? 'price-asc',
+        sort: parseSort(a.sort) ?? 'price-asc',
       });
-      if (picked.length === 0)
-        throw new Error(`No available products match${args.category ? ` category "${args.category}"` : ''}`);
+      if (picked.length === 0) throw new Error(`No available products${a.category ? ` in "${a.category}"` : ''}`);
       const items = [];
-      for (const p of picked) items.push(await toItem(p, { refresh: args.refresh }));
-      const subtitle = args.subtitle ?? args.category ?? '';
+      for (const p of picked) {
+        const { description: _unused, ...item } = await toItem(p, { refresh: a.refresh });
+        items.push(item);
+      }
+      const subtitle = a.subtitle ?? a.category ?? '';
       return {
-        slug: `top-${items.length}${subtitle ? `-${slugify(subtitle)}` : ''}`,
-        job: { template: 'TopList', props: { title: args.title ?? `Top ${items.length}`, subtitle, items } },
+        slug: `${brand}-top-${items.length}${subtitle ? `-${slugify(subtitle)}` : ''}`,
+        job: { template: 'TopList', props: { brand, ...(a.title ? { title: a.title } : {}), subtitle, items } },
       };
     },
   },

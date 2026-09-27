@@ -1,0 +1,44 @@
+{
+  "template": "TopList",
+  "props": {
+    "brand": "volt",
+    "subtitle": "Summer flavours",
+    "items": [
+      {
+        "id": "volt-grape",
+        "name": "Night Grape",
+        "price": 3.29,
+        "category": "Limited",
+        "image": "brands/volt/products/can-grape.svg"
+      },
+      {
+        "id": "volt-mango",
+        "name": "Mango Surge",
+        "price": 2.79,
+        "category": "Tropical",
+        "image": "brands/volt/products/can-mango.svg"
+      },
+      {
+        "id": "volt-ice",
+        "name": "Arctic Ice",
+        "price": 2.79,
+        "category": "Original",
+        "image": "brands/volt/products/can-ice.svg"
+      },
+      {
+        "id": "volt-pink",
+        "name": "Dragon Rush",
+        "price": 2.99,
+        "category": "Limited",
+        "image": "brands/volt/products/can-pink.svg"
+      },
+      {
+        "id": "volt-lime",
+        "name": "Lime Strike",
+        "price": 2.99,
+        "category": "Original",
+        "image": "brands/volt/products/can-lime.svg"
+      }
+    ]
+  }
+}

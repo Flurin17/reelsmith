@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayDomain, formatPrice, formatTotal, priceParts, withAlpha } from '../src/brand/format';
+import { displayDomain, formatPrice, formatTotal, priceParts, withAlpha } from '../src/theme/format';
 
 describe('formatPrice', () => {
   it('drops cents for whole prices and keeps them otherwise', () => {

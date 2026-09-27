@@ -16,14 +16,13 @@ describe('templates', () => {
     expect(t.durationInFrames).toBeGreaterThan(0);
   });
 
-  it('accept a per-video brand override', () => {
-    for (const t of TEMPLATES) {
-      const parsed = t.schema.safeParse({
-        ...t.defaultProps,
-        brand: { name: 'Other', colors: { primary: '#123456' } },
-      });
-      expect(parsed.success).toBe(true);
-    }
+  it.each(TEMPLATES.map((t) => [t.id, t] as const))('%s example is a valid, minimal job', (_, t) => {
+    expect(t.schema.safeParse(t.example).success).toBe(true);
+    expect(JSON.stringify(t.example).length).toBeLessThan(2500);
+  });
+
+  it('accept any brand id', () => {
+    for (const t of TEMPLATES) expect(t.schema.safeParse({ ...t.example, brand: 'volt' }).success).toBe(true);
   });
 });
 

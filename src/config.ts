@@ -1,12 +1,7 @@
 /**
- * Config contract for `reelsmith.config.ts`.
- *
- * The config is imported by BOTH the browser bundle (Remotion renders the brand)
- * and the Node CLI (catalog, voiceover). Keep it plain data — no `fs`, no DB
- * clients. Node-only behaviour (custom catalogs) is referenced by file path and
- * loaded lazily by the CLI.
+ * Config contract for `reelsmith.config.ts` (Node side: catalog + voice).
+ * Brands live in brands/<id>/theme.ts, not here. Keep it plain data.
  */
-import type { Brand } from './brand/types';
 
 export type CatalogConfig =
   /** A JSON array of products (see `Product` in cli/catalog.ts). */
@@ -43,12 +38,15 @@ export interface VoiceConfig {
 }
 
 export interface ReelsmithConfig {
-  brand: Brand;
+  /**
+   * Fallback product catalog. Per-brand catalogs are found by convention first:
+   * brands/<id>/catalog.ts (module) → products.json → products.csv.
+   */
   catalog?: CatalogConfig;
   voice?: VoiceConfig;
   /**
-   * Images are copied into public/products. With `cutout: true`, flat white
-   * studio backgrounds are removed so products float over the scene.
+   * Remote/local catalog images are copied into public/products. With
+   * `cutout: true`, flat white studio backgrounds are removed.
    */
   images?: { cutout?: boolean };
 }

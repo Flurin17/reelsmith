@@ -1,0 +1,16 @@
+{
+  "template": "ProductSpotlight",
+  "props": {
+    "brand": "nocturne",
+    "hook": "Forty hours. *Zero* noise.",
+    "name": "Nocturne One",
+    "subtitle": "Over-ear · Noise cancelling",
+    "price": 349,
+    "features": [
+      "40 h battery",
+      "Adaptive noise cancelling",
+      "Memory-foam cushions"
+    ],
+    "image": "brands/nocturne/products/headphones.svg"
+  }
+}

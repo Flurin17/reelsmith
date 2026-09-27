@@ -1,8 +1,7 @@
 {
   "template": "Explainer",
   "props": {
-    "topic": "bad-explainer",
-    "brand": { "colors": { "ink": "#d8d8d8", "inkMuted": "#e0e0e0" } },
+    "brand": "lumen",
     "scenes": [
       {
         "id": "hook",
@@ -12,7 +11,7 @@
         "voiceover": "missing/clip.mp3",
         "captions": [{ "text": "late", "start": 0.2, "end": 2.5 }]
       },
-      { "id": "img", "visual": { "type": "image", "image": "does-not-exist.png" } }
+      { "id": "img", "visual": { "type": "product", "image": "brands/lumen/products/does-not-exist.png" } }
     ]
   }
 }

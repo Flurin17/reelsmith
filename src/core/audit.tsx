@@ -11,8 +11,8 @@
  */
 import React, { useLayoutEffect, useRef } from 'react';
 import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from 'remotion';
-import { baseBrand } from '../brand/context';
-import { ensureBrandFonts } from '../brand/fonts';
+import { getTheme } from '../theme/context';
+import { ensureThemeFonts } from '../theme/fonts';
 
 export const AUDIT_PREFIX = '__REELSMITH_AUDIT__';
 
@@ -39,8 +39,8 @@ export interface AuditFrame {
   textCount: number;
   mediaCount: number;
   issues: AuditIssue[];
-  /** Visible text boxes (up to 40), used for the pixel check "is it painted?". */
-  texts: { text: string; box: Rect; font: number }[];
+  /** Visible text boxes (up to 40) for the pixel checks (painted? contrast?). */
+  texts: { text: string; box: Rect; font: number; color: string; shadow: boolean }[];
 }
 
 /**
@@ -82,19 +82,6 @@ function luminance([r, g, b]: [number, number, number, number]): number {
 export function contrastRatio(a: [number, number, number, number], b: [number, number, number, number]): number {
   const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (l1 + 0.05) / (l2 + 0.05);
-}
-
-/** First opaque-ish background behind an element, or null (image/video/gradient). */
-function backgroundOf(el: Element | null, root: Element): [number, number, number, number] | null {
-  let node: Element | null = el;
-  while (node && node !== root.parentElement) {
-    const style = getComputedStyle(node);
-    if (style.backgroundImage && style.backgroundImage !== 'none') return null;
-    const bg = parseColor(style.backgroundColor);
-    if (bg && bg[3] >= 0.85) return bg;
-    node = node.parentElement;
-  }
-  return null;
 }
 
 function effectiveOpacity(el: Element, root: Element): number {
@@ -142,7 +129,8 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
     h: r.height / scale,
   });
   const issues: AuditIssue[] = [];
-  const texts: { el: Element; rect: Rect; ink: Rect; text: string; font: number }[] = [];
+  const texts: { el: Element; rect: Rect; ink: Rect; text: string; font: number; color: string; shadow: boolean }[] =
+    [];
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const seen = new Set<Element>();
@@ -157,12 +145,15 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
     if (r.width < 1 || r.height < 1) continue;
     seen.add(el);
     const rect = toRect(r);
+    const cs = getComputedStyle(el);
     texts.push({
       el,
       rect,
       ink: inkBox(el, text, rect),
       text: text.slice(0, 60),
-      font: parseFloat(getComputedStyle(el).fontSize),
+      font: parseFloat(cs.fontSize),
+      color: cs.color,
+      shadow: Boolean(cs.textShadow && cs.textShadow !== 'none'),
     });
   }
 
@@ -186,7 +177,8 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
     let parent = el.parentElement;
     while (parent && parent !== root) {
       const ps = getComputedStyle(parent);
-      if (/(hidden|clip)/.test(ps.overflow + ps.overflowX + ps.overflowY) && !isDecorative(parent)) {
+      const intentional = parent.getAttribute('data-audit') === 'reveal';
+      if (/(hidden|clip)/.test(ps.overflow + ps.overflowX + ps.overflowY) && !isDecorative(parent) && !intentional) {
         const pr = toRect(parent.getBoundingClientRect());
         // Glyph boxes include ascender/descender space beyond a tight line-height,
         // so allow some vertical slack; horizontal clipping is judged strictly.
@@ -223,7 +215,8 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
       }
     }
 
-    if (fontPx < 28) {
+    // "detail" zones (e.g. UI inside a phone mockup) may use small text.
+    if (fontPx < 28 && !el.closest('[data-audit="detail"]')) {
       issues.push({
         rule: 'text-too-small',
         severity: 'warn',
@@ -231,23 +224,6 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
         box: rect,
         text,
       });
-    }
-
-    const fg = parseColor(style.color);
-    const bg = backgroundOf(el, root);
-    if (fg && bg && fg[3] > 0.5) {
-      const ratio = contrastRatio(fg, bg);
-      const needed = fontPx >= 48 ? 3 : 4.5;
-      const shadowed = style.textShadow && style.textShadow !== 'none';
-      if (ratio < needed && !shadowed) {
-        issues.push({
-          rule: 'low-contrast',
-          severity: 'warn',
-          message: `Contrast ${ratio.toFixed(1)}:1 (needs ${needed}:1)`,
-          box: rect,
-          text,
-        });
-      }
     }
   }
 
@@ -294,7 +270,9 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
     textCount: texts.length,
     mediaCount: media.length,
     issues,
-    texts: texts.slice(0, 40).map((t) => ({ text: t.text, box: t.ink, font: t.font })),
+    texts: texts
+      .slice(0, 40)
+      .map((t) => ({ text: t.text, box: t.ink, font: t.font, color: t.color, shadow: t.shadow })),
   };
 }
 
@@ -307,7 +285,11 @@ function audit(root: HTMLElement, frame: number, width: number, height: number):
 const emit = new Function('line', 'console.log(line)') as (line: string) => void;
 
 /** Wraps a composition; measures + logs when `enabled`. */
-export const Auditor: React.FC<{ enabled: boolean; children: React.ReactNode }> = ({ enabled, children }) => {
+export const Auditor: React.FC<{ enabled: boolean; brand?: string; children: React.ReactNode }> = ({
+  enabled,
+  brand,
+  children,
+}) => {
   const ref = useRef<HTMLDivElement>(null);
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
@@ -326,7 +308,7 @@ export const Auditor: React.FC<{ enabled: boolean; children: React.ReactNode }> 
     // Measure only once the frame is final: brand fonts loaded (fallback-font
     // metrics give wrong boxes), images decoded, then two frames for layout.
     const settle = async () => {
-      await ensureBrandFonts(baseBrand).catch(() => undefined);
+      await ensureThemeFonts(getTheme(brand)).catch(() => undefined);
       await document.fonts.ready;
       const imgs = [...(ref.current?.querySelectorAll('img') ?? [])];
       await Promise.all(imgs.map((img) => (img.complete ? null : img.decode().catch(() => undefined))));
@@ -344,7 +326,7 @@ export const Auditor: React.FC<{ enabled: boolean; children: React.ReactNode }> 
       cancelled = true;
       release();
     };
-  }, [enabled, frame, width, height]);
+  }, [enabled, brand, frame, width, height]);
 
   return <AbsoluteFill ref={ref}>{children}</AbsoluteFill>;
 };

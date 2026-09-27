@@ -1,0 +1,34 @@
+[
+  {
+    "id": "lumen-lamp",
+    "name": "Dome Lamp",
+    "price": 129,
+    "category": "Lighting",
+    "description": "Warm dimmable light in a brushed brass dome.",
+    "image": "brands/lumen/products/lamp.svg"
+  },
+  {
+    "id": "lumen-vase",
+    "name": "Terra Vase",
+    "price": 64,
+    "category": "Ceramics",
+    "description": "Hand-thrown terracotta, glazed inside.",
+    "image": "brands/lumen/products/vase.svg"
+  },
+  {
+    "id": "lumen-mug",
+    "name": "Moss Mug",
+    "price": 28,
+    "category": "Ceramics",
+    "description": "Stoneware that keeps coffee warm and hands cool.",
+    "image": "brands/lumen/products/mug.svg"
+  },
+  {
+    "id": "lumen-candle",
+    "name": "Amber Candle",
+    "price": 36,
+    "category": "Scent",
+    "description": "Soy wax, amber and cedar, 50 hours.",
+    "image": "brands/lumen/products/candle.svg"
+  }
+]

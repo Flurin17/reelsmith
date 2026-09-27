@@ -1,118 +1,67 @@
 ---
 name: reelsmith
-description: Produce on-brand short-form vertical videos (TikTok, Instagram Reels, YouTube Shorts) with a Reelsmith project — concept, script, job file, ElevenLabs voiceover with synced captions, automated review, and MP4 render. Use whenever the user asks to make, edit, or batch a reel, TikTok, short, product video, explainer or video ad in a repository that contains reelsmith.config.ts.
+description: Make on-brand short-form vertical videos (TikTok, Reels, Shorts) in a Reelsmith repo — pick brand + template, write the job, add voiceover, review, render. Use for any request to create, edit or batch a reel, TikTok, short, product video, explainer, app promo or video ad in a repository containing brands/ and reelsmith.config.ts.
 ---
 
-# Reelsmith — making a reel end to end
+# Making a reel
 
-Reelsmith is a Remotion project driven by **job files** (`jobs/<slug>.json`) and a
-CLI (`pnpm reelsmith …`). Every command is non-interactive and prints file paths,
-so you can run the whole pipeline yourself.
+Everything runs through `pnpm reelsmith <command>` (non-interactive, prints paths).
+Other skills: **reelsmith-design** (new brand, theme, template or component),
+**reelsmith-review** (mandatory before delivering).
 
-Companion skills (same folder as this one):
-
-| Skill                | Use it when                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------ |
-| `reelsmith-brand`    | The brand is still the demo ("Lumen Supply") or `brand/guidelines.md` is missing/outdated. |
-| `reelsmith-template` | No shipped template fits the idea or the brand's visual language — build your own.         |
-| `reelsmith-review`   | **Always**, before you show or render a final video.                                       |
-
-## 0. Check the setup (once per session)
+## 1. Orient (one command)
 
 ```bash
-node -v                      # needs 20+
-pnpm install                 # if node_modules is missing
-pnpm reelsmith list          # templates
-pnpm reelsmith brand         # brand tokens + contrast
+pnpm reelsmith context        # brands, templates, what to edit where
 ```
 
-Voiceover needs `ELEVENLABS_API_KEY` in `.env.local` (copy `.env.example`).
-Never print, log or commit secrets. If the key is missing, you can still build and
-review silent videos; tell the user narration is pending.
+Then read `brands/<brand>/guidelines.md` (voice, look, CTA, what never to claim).
+No fitting brand? → **reelsmith-design**. No `node_modules`? → `pnpm install`.
 
-## 1. Load the brand context — never skip
+## 2. Plan in one paragraph
 
-1. Read `brand/guidelines.md` (voice, visual rules, CTA rules, claims policy).
-2. Read the `brand` block of `reelsmith.config.ts` (colors, fonts, locale, currency, domain).
-3. If the brand is still the demo brand, or the user names another company, run the
-   **reelsmith-brand** skill first.
+Goal, brand, template, length (product 9–15 s · explainer 20–35 s), hook (≤ 6 words,
+on screen by 0.8 s), 3–5 beats, CTA. Craft notes: `references/short-form.md`.
+If no template fits the idea or the brand's look, build one (**reelsmith-design**).
 
-Everything you write (copy, colors, claims, CTA) must follow those two files.
-
-## 2. Brief and concept
-
-Pin down (ask only what you cannot infer): goal (awareness / traffic / sale),
-product or topic, platform, language, target length. Then write a one-paragraph
-concept with: hook (first 1–2 s), the 3–5 beats, CTA. See
-`references/short-form.md` for hooks, pacing and length defaults. If you can
-browse, spend a minute checking current platform best practices.
-
-## 3. Pick the format
+## 3. Write the job
 
 ```bash
-pnpm reelsmith list
-pnpm reelsmith describe <Template> --json   # JSON Schema + example job
+pnpm reelsmith describe <Template>          # compact props + example (≈600 tokens)
+pnpm reelsmith new <Template> <slug> --brand <id>                  # minimal example job
+pnpm reelsmith make TopList --brand volt --count 5                 # or: from the catalog
+pnpm reelsmith make ProductSpotlight --brand nocturne --product nocturne-one --hook "…"
 ```
 
-Shipped templates are **examples of four distinct looks** (dark cinematic
-spotlight, light editorial explainer, bold countdown, kinetic captions). If none
-matches the idea _and_ the brand's visual language, build a new template with
-**reelsmith-template** — that is expected, not a last resort.
+Edit `jobs/<slug>.json`. Rules:
 
-## 4. Create the job
+- Facts and prices only from the brand catalog (`pnpm reelsmith catalog --brand <id>`).
+- One idea per scene; on-screen text shorter than what is said.
+- `*word*` marks emphasis in headlines, hooks and `say`.
+- Narrated scenes need only `id` + `say`; timing is automatic (voiceover length, or word count).
 
-- From catalog data: `pnpm reelsmith make ProductSpotlight --product <id> --hook "…"`
-  or `pnpm reelsmith make TopList --category <text> --count 5`.
-- From scratch: `pnpm reelsmith new <Template> <slug>`, then edit `jobs/<slug>.json`.
-- Check it: `pnpm reelsmith validate jobs/<slug>.json`.
-
-Rules: prices and specs come from the catalog (`pnpm reelsmith catalog`), never
-from memory. One idea per scene. On-screen text is shorter than the narration.
-Details: `references/job-files.md`.
-
-## 5. Voiceover (narrated templates)
+## 4. Voiceover (narrated templates)
 
 ```bash
-pnpm reelsmith voiceover jobs/<slug>.json --dry-run   # see what will be synthesised
-pnpm reelsmith voiceover jobs/<slug>.json             # one MP3 per scene + captions + durations
-pnpm reelsmith voiceover jobs/<slug>.json --scene hook   # regenerate one scene only
+pnpm reelsmith voiceover jobs/<slug>.json --dry-run
+pnpm reelsmith voiceover jobs/<slug>.json            # one clip per scene; unchanged scenes skipped
+pnpm reelsmith voiceover jobs/<slug>.json --scene hook
 ```
 
-The command writes `voiceover`, `captions` (word timings) and `duration` back into
-the job, and skips unchanged scenes (cost control). Voice/tag guidance:
-`references/voiceover.md`.
+Needs `ELEVENLABS_API_KEY` in `.env.local` (never print it). Without a key, build and
+review silently and tell the user. Voices and audio tags: `references/voiceover.md`.
 
-## 6. Review — mandatory
-
-Follow **reelsmith-review**: `pnpm reelsmith review jobs/<slug>.json`, look at the
-contact sheets, fix, repeat until it passes.
-
-## 7. Render and deliver
+## 5. Review → fix → review (reelsmith-review)
 
 ```bash
-pnpm reelsmith render jobs/<slug>.json --draft   # fast half-res check (optional)
-pnpm reelsmith render jobs/<slug>.json           # final → out/<slug>.mp4
+pnpm reelsmith review jobs/<slug>.json
 ```
 
-Report back: output path, length, the final review score (and its history), the
-narration script, and anything the user must still do (e.g. add a licensed music
-track in `public/music/`).
+## 6. Render and report
 
-## Command cheat sheet
+```bash
+pnpm reelsmith render jobs/<slug>.json      # → out/<slug>.mp4  (--draft for a fast half-size check)
+```
 
-| Command                                                         | Purpose                                           |
-| --------------------------------------------------------------- | ------------------------------------------------- |
-| `list` / `describe <T> [--json]`                                | Templates and their props schema                  |
-| `brand`                                                         | Tokens + contrast matrix                          |
-| `catalog [--category x] [--json]`                               | Products available to templates                   |
-| `new <T> <slug>` / `make <T> …`                                 | Create a job                                      |
-| `validate <job…>`                                               | Schema check                                      |
-| `voiceover <job> [--scene id] [--force] [--dry-run]`            | TTS + captions + durations                        |
-| `stills <job> [--frames 0,90]`                                  | Quick key frames + contact sheet                  |
-| `review <job> [--frames …] [--json] [--strict]`                 | Graded review with annotated frames               |
-| `render <job…> [--draft]`                                       | MP4                                               |
-| `voices [--language de --gender female]` / `audition <id[,id]>` | Pick voices                                       |
-| `sfx` / `cutout <in> <out>`                                     | Regenerate SFX / remove white product backgrounds |
-
-`pnpm studio` opens Remotion Studio for manual tweaking (for humans; agents should
-prefer `stills`/`review`).
+Report: MP4 path, length, review score history, the narration, and anything left
+for the user (e.g. licensed music in `public/music/`, set `music.file` in the job).

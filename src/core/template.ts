@@ -1,7 +1,6 @@
 import type React from 'react';
 import { z } from 'zod';
 import type { CalculateMetadataFunction } from 'remotion';
-import { brandOverride } from '../brand/types';
 
 /** Output format. Templates are laid out for 9:16 (TikTok / Reels / Shorts). */
 export const VIDEO = { width: 1080, height: 1920, fps: 30 } as const;
@@ -12,8 +11,12 @@ export const VIDEO = { width: 1080, height: 1920, fps: 30 } as const;
  */
 export const SAFE = { side: 90, top: 200, bottom: 320 } as const;
 
-/** Build a template props schema; adds the optional per-video `brand` override. */
-export const withBrand = <T extends z.ZodRawShape>(shape: T) => z.object({ ...shape, brand: brandOverride.optional() });
+/**
+ * Build a template's props schema. Adds `brand` (a brand id from brands/,
+ * default: DEFAULT_BRAND) so every job can pick its brand.
+ */
+export const jobProps = <T extends z.ZodRawShape>(shape: T) =>
+  z.object({ brand: z.string().optional().describe('brand id from brands/ (default brand if omitted)'), ...shape });
 
 /**
  * A render-side template: everything Remotion needs to register one
@@ -27,6 +30,11 @@ export interface Template<P extends Record<string, unknown> = Record<string, unk
   component: React.FC<P>;
   schema: z.ZodType<P, any>;
   defaultProps: P;
+  /**
+   * The smallest useful job props (defaults omitted). Written by `reelsmith new`
+   * and shown by `describe` — keep it short, it is what agents read.
+   */
+  example: Record<string, unknown>;
   /** Fallback length; most templates compute it in calculateMetadata. */
   durationInFrames: number;
   calculateMetadata?: CalculateMetadataFunction<P>;

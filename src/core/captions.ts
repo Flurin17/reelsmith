@@ -107,3 +107,33 @@ export function stripAudioTags(text: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * Voiceover sidecar written next to each clip (public/voiceovers/<slug>/<scene>.json).
+ * Compact on purpose: jobs stay small, agents never need to read timestamps.
+ */
+export interface VoiceoverSidecar {
+  /** Seconds until the last spoken word ends. */
+  speechEnd: number;
+  /** [text, start, end, speaker?] per word, seconds from clip start. */
+  words: [string, number, number, string?][];
+}
+
+export const toSidecarWords = (words: CaptionWord[]): VoiceoverSidecar['words'] =>
+  words.map((w) => (w.speaker ? [w.text, w.start, w.end, w.speaker] : [w.text, w.start, w.end]));
+
+export const fromSidecarWords = (words: VoiceoverSidecar['words']): CaptionWord[] =>
+  words.map(([text, start, end, speaker]) => ({ text, start, end, speaker: speaker ?? '' }));
+
+/** Sidecar path for a clip path ("slug/hook.mp3" → "slug/hook.json"). */
+export const sidecarPath = (clip: string) => clip.replace(/\.[a-z0-9]+$/i, '.json');
+
+/**
+ * Evenly spread the words of `text` over `seconds` — a stand-in for real
+ * timings so captions and kinetic type preview before any voiceover exists.
+ */
+export function evenCaptions(text: string, seconds: number): CaptionWord[] {
+  const words = stripAudioTags(text).split(/\s+/).filter(Boolean);
+  const step = Math.max(0.15, (seconds - 0.4) / Math.max(words.length, 1));
+  return words.map((w, i) => ({ text: w, start: 0.15 + i * step, end: 0.15 + (i + 0.85) * step, speaker: '' }));
+}

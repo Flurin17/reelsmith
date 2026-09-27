@@ -1,86 +1,58 @@
 ---
 name: reelsmith-review
-description: Verify and improve a Reelsmith video before delivering it — render key frames, run the automated grader (layout, legibility, contrast, platform safe zones, assets, voiceover timing, reading speed, brand lint), look at the annotated contact sheet, score the visual rubric, fix, and repeat until it passes. Use after creating or changing any job or template, and always before rendering a final MP4.
+description: Verify and improve a Reelsmith video before delivering it — render audited key frames, get an automated score (layout, legibility, pixel contrast, platform safe zones, assets, voiceover timing, reading speed, brand lint), look at the one contact sheet, score the taste rubric, fix, repeat until it passes. Use after creating or changing any job, brand or template, and always before rendering a final MP4.
 ---
 
-# Reelsmith review loop
+# Review loop
 
-Never hand over a video you have not reviewed. The loop is: **review → look →
-score → fix → review again**, at most 5 rounds.
-
-## 1. Run the grader
+**review → look → score → fix → review**, at most 5 rounds. Never deliver unreviewed.
 
 ```bash
-pnpm reelsmith review jobs/<slug>.json
+pnpm reelsmith review jobs/<slug>.json            # --frames 0,45 to inspect moments, --strict for CI
 ```
 
-It renders representative frames (one per scene/beat, plus 0.8 s for the hook)
-with a DOM audit running inside the real render, then writes to
-`out/review/<slug>/`:
+Prints the score, findings with frame numbers, and one image to look at:
+`out/review/<slug>/sheet.png` (small tiles; frames with issues have boxes: red = error,
+orange = warning, dashed blue = platform UI). Full-size frames are in `frames/`,
+details in `report.md` / `report.json`, scores over time in `history.json`.
+Automated **PASS = no errors and score ≥ 80**.
 
-| File                    | What it is                                                                        |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| `report.md`             | Score, verdict, findings with frame numbers and fixes, frame table, visual rubric |
-| `report.json`           | Same data, machine-readable (`--json` prints it)                                  |
-| `sheet.png`             | Clean contact sheet with timestamps                                               |
-| `sheet-annotated.png`   | Red boxes = errors, orange = warnings, dashed blue = platform UI zones            |
-| `frames/`, `annotated/` | Full-size frames                                                                  |
-| `history.json`          | Score per run — show the trend in your summary                                    |
+## Look and score (1–5 each)
 
-Automated verdict: **PASS = no errors and score ≥ 80.** Use `--strict` to get a
-non-zero exit code on failure (CI), `--frames 0,45,90` to inspect specific
-moments such as transitions.
+View the sheet with your image-viewing ability (if you can't view images, say so and
+rely on `report.json`; don't invent rubric scores).
 
-## 2. Look at the frames
+| Criterion | 5 | 2 |
+| --- | --- | --- |
+| Hook | Clear claim/question in ≤ 6 big words at 0.8 s | Logo/name only, small text |
+| Clarity | One idea per frame, obvious in < 1 s | Competing elements, walls of text |
+| Brand fit | Matches `brands/<id>/guidelines.md` + theme | Generic, off-palette, wrong tone |
+| Composition | Clear hierarchy, balanced, uses the frame | Dead zones, crowding, edges |
+| Variety | Consecutive frames differ; pacing right | Same layout every beat |
+| CTA | Domain fully typed, on-brand, clear | Truncated, hard sell, missing |
 
-Open `sheet-annotated.png`, then `sheet.png` (use whatever image-viewing ability
-you have; open single frames from `frames/` when something is unclear). If you
-cannot view images, say so explicitly, rely on `report.json`, and do not claim a
-visual rubric score.
+**Done:** automated PASS, every criterion ≥ 3, average ≥ 4.
 
-## 3. Score the visual rubric (1–5 each)
+## Fixes by rule
 
-The script cannot judge taste — you must. Be honest; a 5 is rare.
+| Rule | Fix |
+| --- | --- |
+| `text-off-canvas` `text-clipped` | `fitSize()` the text, shorten copy, let containers grow |
+| `text-not-painted` | Text invisible in pixels: same color as background, faded, or an un-awaited custom font |
+| `low-contrast` | Measured against the real pixels behind the text: use tone pairs that pass `pnpm reelsmith brand <id>` |
+| `platform-ui-overlap` | Move text inside `SAFE`; keep the right rail clear |
+| `text-overlap` `text-too-small` | Separate elements; ≥ 28 px (phone UI excepted) |
+| `asset-missing` `image-missing` | Path is relative to `public/`, or a URL |
+| `speech-cut-off` `voiceover-missing` `no-captions` | Run/redo `pnpm reelsmith voiceover`; don't hand-set short durations |
+| `reading-speed` `scene-too-short` `duration` | Cut words (≤ 3/s), merge scenes, stay 9–35 s |
+| `no-hook-text` | Hook on screen by 0.8 s |
+| `hardcoded-style` | Replace literals with `useTheme()` tokens |
 
-| Criterion        | 5 =                                                         | 2 =                                                   |
-| ---------------- | ----------------------------------------------------------- | ----------------------------------------------------- |
-| Hook             | Frame 1 makes a clear claim/question in ≤ 6 big words       | Logo/name only, or text too small to read at a glance |
-| Clarity          | One idea per scene; the main element is obvious in < 1 s    | Competing elements, walls of text                     |
-| Brand fidelity   | Colors, type, shapes, tone match `brand/guidelines.md`      | Generic look, off-palette colors, wrong tone          |
-| Composition      | Clear hierarchy, balanced, no dead zones or crowding        | Big empty areas, things jammed against edges          |
-| Variety & pacing | Consecutive frames look different; nothing lingers          | Same layout every scene; scenes too long/short        |
-| CTA              | Last frame shows exactly where to go, fully typed, on-brand | Truncated domain, hard sell, missing CTA              |
+Fix the job first (copy, timing, assets); touch theme or template code only for
+structural problems, then re-review every job using that brand/template.
 
-**Done when:** automated PASS **and** every criterion ≥ 3 **and** average ≥ 4.
+## Rules
 
-## 4. Fix — most common findings
-
-| Rule                              | Typical fix                                                                                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `text-off-canvas`, `text-clipped` | Size text to its box (`autoSize`, `fitParagraph`), shorten copy, allow wrapping                                                                  |
-| `text-not-painted`                | Text is in the DOM but invisible: same color as its background, faded out, or a custom font loaded without `delayRender()` — use the brand fonts |
-| `platform-ui-overlap`             | Move text inside `SAFE` (top 200 / bottom 320 / sides 90 px); nothing important under the right action rail                                      |
-| `text-overlap`                    | Give elements their own space; check wordmark vs headline                                                                                        |
-| `text-too-small`                  | ≥ 28 px, ideally 34 px+                                                                                                                          |
-| `low-contrast`                    | Use token pairs that pass `pnpm reelsmith brand` (ink/paper, onPrimary/primary, …)                                                               |
-| `asset-missing`, `image-missing`  | Add the file under `public/…` or fix the path                                                                                                    |
-| `voiceover-missing`               | `pnpm reelsmith voiceover <job>` (info-only when no API key is configured — tell the user)                                                       |
-| `speech-cut-off`                  | Re-run voiceover or raise the scene `duration`                                                                                                   |
-| `reading-speed`                   | Cut on-screen words or lengthen the scene (≤ 3 words/s)                                                                                          |
-| `no-hook-text`                    | Put the hook on screen by 0.8 s                                                                                                                  |
-| `hardcoded-style`                 | Replace literal colors/fonts in the template with `useBrand()` tokens                                                                            |
-| `duration`                        | Tighten to the length targets in the main skill                                                                                                  |
-
-Fix the job first (copy, timing, assets); change template code only when the
-problem is structural. After template changes, re-review **all** jobs using that
-template (`examples/jobs/` too).
-
-## 5. Rules of the loop
-
-- Don't game the grader: never mark real content `data-audit="decorative"`, never
-  shrink `SAFE`, never raise thresholds to pass.
-- Warnings may stay only with a one-line justification in your summary (e.g. an
-  intentional overlap in a logo lockup).
-- Stop after 5 rounds and report what is left and why.
-- In your final message include: score history, remaining warnings with reasons,
-  your rubric scores, and the paths to `sheet.png` and the MP4.
+- Don't game it: no fake `data-audit` markers, no shrinking `SAFE`, no threshold edits.
+- A warning may stay only with a one-line reason in your summary.
+- Final message: score history, remaining warnings + reasons, rubric scores, sheet + MP4 paths.

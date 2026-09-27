@@ -4,10 +4,10 @@ Defaults that hold across TikTok, Reels and Shorts. Brand guidelines override th
 
 ## Length
 
-| Type                     | Target  | Notes                             |
-| ------------------------ | ------- | --------------------------------- |
-| Product hit / spotlight  | 9–15 s  | One product, one reason to care.  |
-| Explainer / how-to       | 20–35 s | 3–5 beats.                        |
+| Type | Target | Notes |
+| --- | --- | --- |
+| Product hit / spotlight | 9–15 s | One product, one reason to care. |
+| Explainer / how-to | 20–35 s | 3–5 beats. |
 | Buying guide / deep dive | 35–60 s | Only if the topic truly needs it. |
 
 `reelsmith review` warns outside 6–60 s and notes anything over 35 s.

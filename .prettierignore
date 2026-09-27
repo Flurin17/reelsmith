@@ -4,3 +4,4 @@ out
 pnpm-lock.yaml
 public
 examples/jobs
+**/*.md

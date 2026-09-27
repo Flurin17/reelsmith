@@ -1,27 +1,29 @@
 import React from 'react';
 import { Composition } from 'remotion';
-import { BrandProvider, baseBrand } from './brand/context';
-import { FontGate } from './brand/fonts';
-import type { BrandOverride } from './brand/types';
 import { Auditor } from './core/audit';
 import { VIDEO, type Template } from './core/template';
 import { TEMPLATES } from './templates';
+import { ThemeProvider, getTheme } from './theme/context';
+import { FontGate } from './theme/fonts';
 
 /**
- * Wrap a template so its optional `brand` prop overrides the config brand, and
- * so `reelsmith review` can audit frames (input prop `__audit: true`).
+ * Wrap a template with its brand (props.brand → brands/<id>/theme.ts), the
+ * brand's fonts, and the frame auditor used by `reelsmith review`.
  */
 function branded(template: Template<any>): React.FC<any> {
   const Inner = template.component;
-  const Branded: React.FC<Record<string, unknown>> = (props) => (
-    <FontGate brand={baseBrand}>
-      <BrandProvider override={props.brand as BrandOverride | undefined}>
-        <Auditor enabled={props.__audit === true}>
-          <Inner {...props} />
-        </Auditor>
-      </BrandProvider>
-    </FontGate>
-  );
+  const Branded: React.FC<Record<string, unknown>> = (props) => {
+    const brand = typeof props.brand === 'string' ? props.brand : undefined;
+    return (
+      <FontGate theme={getTheme(brand)}>
+        <ThemeProvider brand={brand}>
+          <Auditor enabled={props.__audit === true} brand={brand}>
+            <Inner {...props} />
+          </Auditor>
+        </ThemeProvider>
+      </FontGate>
+    );
+  };
   Branded.displayName = `Branded(${template.id})`;
   return Branded;
 }

@@ -1,164 +1,109 @@
 # Reelsmith
 
-**AI-agent-first toolkit for on-brand short-form video** — TikTok, Instagram Reels
-and YouTube Shorts, rendered with [Remotion](https://www.remotion.dev/).
+**A repo your coding agent uses to make on-brand TikToks, Reels and Shorts.**
+Clone it, open it in Claude Code, Codex, Cursor or any agent, and ask for a video.
+The agent reads the brand, writes the script, builds or picks a template, adds
+voiceover with word-synced captions, **grades its own frames**, fixes what's wrong
+and renders the MP4 — with [Remotion](https://www.remotion.dev/) under the hood.
 
-You describe the video; a coding agent (Claude Code, Codex, Cursor, …) writes the
-script, builds or picks a template **from your company's visual guidelines**,
-generates the voiceover with word-synced captions, **grades its own frames**, fixes
-what's wrong, and renders the MP4.
+![Five brands, five templates](docs/assets/examples.jpg)
 
-![Four example templates rendered with the demo brand](docs/assets/examples.jpg)
+<sub>The five example templates, each with its own demo brand: `ProductSpotlight`
+(Nocturne), `Explainer` (Lumen), `TopList` (VOLT), `KineticCaptions` (kin), `AppPromo` (Orbit).</sub>
 
-<sub>The four shipped example templates — `ProductSpotlight`, `Explainer`, `TopList`,
-`KineticCaptions` — rendered with the demo brand. They are starting points; the
-agent is meant to build templates that look like _your_ brand.</sub>
+## Brands are one file — and they change everything
 
-## What's in the box
+Every template is built from a small design system that reads the brand's theme.
+Swap the brand and the same video takes on a different typeface, palette, shape
+language, backdrop and motion:
 
-- **Brand system** — one config (`reelsmith.config.ts`) with color tokens, fonts
-  (any Google font or your own files), logo, locale and currency, plus
-  `brand/guidelines.md` for voice, visual rules and claims policy. Any video can
-  override the brand, so one install can serve several brands.
-- **Job files** — a video is `jobs/<slug>.json` = `{ template, props }`, validated
-  against a zod schema. `reelsmith describe <Template> --json` prints the JSON
-  Schema so agents write valid jobs without reading source.
-- **Data** — product catalog from JSON, CSV, or your own module (database, Shopify,
-  API…). Prices and specs come from data, not from the model's memory.
-- **Voiceover + captions** — ElevenLabs per-scene clips with character timestamps →
-  word-level captions and scene durations written back into the job. Unchanged
-  scenes are cached (you don't pay twice).
-- **Review loop** — `reelsmith review` renders key frames with a DOM audit running
-  inside the real render and grades them: clipped/off-canvas text, text hidden
-  under TikTok/Reels UI, overlaps, tiny text, WCAG contrast, text that isn't
-  actually painted, missing assets, speech cut off, reading speed, hook timing,
-  hardcoded (off-brand) styles. Output: a score, an annotated contact sheet and a
-  rubric for the agent's own visual judgement.
-- **Agent skills** in the open [Agent Skills](https://agentskills.io) format:
-  `reelsmith` (end-to-end workflow), `reelsmith-brand` (capture a brand from its
-  website), `reelsmith-template` (design brand-native templates),
-  `reelsmith-review` (verification loop).
-- **Royalty-free SFX** synthesised from code, and demo assets you can redistribute.
+![The same job rendered with five brands](docs/assets/one-job-five-brands.jpg)
+
+```ts
+// brands/acme/theme.ts — only id, name, url, colors and fonts are required
+export default defineTheme({
+  id: 'acme', name: 'Acme', url: 'acme.com',
+  colors: { bg, surface, text, muted, line, primary, onPrimary, accent, onAccent },
+  fonts: { display: { family: 'Fraunces', weights: ['600'] }, body: { family: 'Inter' } },
+  tones: [...],                                   // scene color schemes templates rotate through
+  shape: { radius: 6, border: 1, shadow: 'soft' },              // none | soft | hard | glow
+  motion: { reveal: 'mask', ease: [0.25, 1, 0.5, 1], enter: 20 }, // rise fade pop blur mask slide
+  backdrop: { kind: 'grid', grain: 0.05 },        // solid grid dots mesh spotlight rays
+  components: { Backdrop: MyBackdrop },           // or replace any primitive outright
+});
+```
+
+Three layers, each editable by the agent: **theme** (tokens, tones, component
+overrides) → **primitives** (`src/theme/primitives`: Frame, Words, Reveal, Surface,
+Price, Product, Phone, Captions, DomainCta…) → **templates** (one file each in
+`src/templates/`). New formats are expected: the agent builds them from the primitives.
+
+## Built for agents (and their token budgets)
+
+- `pnpm reelsmith context` — the whole map in ~40 lines: what to edit where, brands, templates.
+- `pnpm reelsmith describe <Template>` — compact TypeScript-style props + example (~600 tokens, not a JSON Schema dump).
+- **Tiny job files** — a narrated scene is `{ "id": "hook", "say": "Your desk is *killing* your focus." }`.
+  Timing comes from the voiceover (or word count); word timings live in sidecar files next to the audio.
+- **One small contact sheet** per review, with problems boxed in place.
+- **Skills** in `skills/` (open SKILL.md format), already linked for Claude Code (`.claude/skills`)
+  and Codex & co. (`.agents/skills`), plus [`AGENTS.md`](AGENTS.md):
+  `reelsmith` (make a video) · `reelsmith-design` (brands, themes, templates) · `reelsmith-review` (verify).
+
+## Self-review that catches real problems
+
+`pnpm reelsmith review jobs/<slug>.json` renders key frames with an audit running
+_inside_ the real render, then checks the pixels:
+
+- text clipped, off-canvas, overlapping, too small, or under TikTok/Reels UI
+- contrast measured against what is **actually behind** the text
+- text that exists in the DOM but never got painted
+- missing assets, speech cut off by short scenes, reading speed, hook by 0.8 s, total length
+- literal colors/fonts in templates (off-brand code)
+
+It scores the job, keeps a score history, and the skill makes the agent add a
+taste rubric (hook, clarity, brand fit, composition, variety, CTA) and iterate until
+it passes. `pnpm reelsmith brand <id>` checks every color pair of a theme up front.
 
 ## Quick start
 
-Requirements: **Node 20+** and **pnpm** (`npm i -g pnpm` or `corepack enable`).
-Remotion downloads its own headless Chrome and ships ffmpeg — nothing else to install.
+Node 20+ and pnpm (`corepack enable`). Remotion ships its own headless Chrome and ffmpeg.
 
 ```bash
-git clone https://github.com/Flurin17/reelsmith.git
-cd reelsmith
+git clone https://github.com/Flurin17/reelsmith.git && cd reelsmith
 pnpm install
-cp .env.example .env.local        # add ELEVENLABS_API_KEY for voiceovers (optional)
+cp .env.example .env.local        # optional: ELEVENLABS_API_KEY for voiceovers
 
-pnpm reelsmith list                                   # templates
-pnpm reelsmith review examples/jobs/kinetic-desk-setup.json
-pnpm reelsmith render examples/jobs/kinetic-desk-setup.json   # → out/kinetic-desk-setup.mp4
-pnpm studio                                           # Remotion Studio for manual tweaks
+pnpm reelsmith context
+pnpm reelsmith review examples/jobs/volt-top-5.json
+pnpm reelsmith render examples/jobs/volt-top-5.json        # → out/volt-top-5.mp4
+pnpm studio                                                # Remotion Studio, for humans
 ```
 
-Make your own:
+Then just ask your agent, e.g.:
 
-```bash
-pnpm reelsmith make TopList --category Audio --count 3      # from the catalog
-pnpm reelsmith new Explainer my-guide                       # from template defaults
-pnpm reelsmith voiceover jobs/my-guide.json                 # narration + captions + timing
-pnpm reelsmith review jobs/my-guide.json                    # grade, then fix & repeat
-pnpm reelsmith render jobs/my-guide.json
-```
-
-## Use it with an AI coding agent
-
-The skills live in [`skills/`](skills/) and are already linked for agents working
-inside this repo (`.claude/skills` for Claude Code, `.agents/skills` for Codex and
-other agents, plus [`AGENTS.md`](AGENTS.md)). Just open the repo in your agent and
-ask, e.g.:
-
-> Set Reelsmith up for acme.com, then make a 20-second explainer about our three
+> Add our brand from acme.com, then make a 20-second explainer about our three
 > best-selling lamps and review it until it passes.
 
-To use the skills from **another** project or globally:
+## Commands
 
-```bash
-# Any agent supported by the skills CLI (Claude Code, Codex, Cursor, Gemini CLI, …)
-npx skills add Flurin17/reelsmith
+|  |  |
+| --- | --- |
+| `context` · `describe <T>` · `brand [id]` · `catalog --brand id` | orient |
+| `new <T> <slug> --brand id` · `make <T> --brand id …` · `validate` | create jobs |
+| `voiceover <job>` · `review <job>` · `stills <job>` · `render <job>` | produce |
+| `voices` · `audition` · `sfx` · `cutout` | assets |
 
-# Claude Code plugin
-/plugin marketplace add Flurin17/reelsmith
-/plugin install reelsmith@reelsmith
-```
+## Data, voice, assets
 
-Recommended companion skills:
-
-```bash
-npx skills add remotion-dev/skills      # Remotion best practices (animation, audio, fonts…)
-npx skills add elevenlabs/skills        # ElevenLabs text-to-speech
-```
-
-## Make it yours
-
-1. **Brand** — edit `reelsmith.config.ts` and `brand/guidelines.md` (or ask your agent
-   to run the `reelsmith-brand` skill against your website). Check with
-   `pnpm reelsmith brand`.
-2. **Data** — point `catalog` at your JSON/CSV, or a module:
-   ```ts
-   // data/catalog.ts — any Node code (DB client, fetch, …)
-   export default async function loadProducts() {
-     return [{ id: 'sku-1', name: 'Lamp', price: 89, category: 'Lighting', image: 'https://…/lamp.png' }];
-   }
-   ```
-   ```ts
-   catalog: { type: 'module', path: 'data/catalog.ts' },
-   images: { cutout: true },   // remove white studio backgrounds automatically
-   ```
-3. **Assets** — licensed music in `public/music/`, background footage in `public/bg/`,
-   logo/fonts in `public/`. Keep third-party media out of git unless its license
-   allows redistribution.
-4. **Templates** — build brand-native ones in `src/templates/<Id>/` (see the
-   `reelsmith-template` skill and the four examples).
-
-## CLI
-
-| Command                                           | What it does                                               |
-| ------------------------------------------------- | ---------------------------------------------------------- |
-| `list`, `describe <T> [--json]`                   | Templates, props JSON Schema + example job                 |
-| `brand`                                           | Brand tokens and a WCAG contrast check of every color pair |
-| `catalog [--category x]`                          | Products from the configured catalog                       |
-| `new <T> <slug>`, `make <T> …`                    | Create a job from defaults or catalog data                 |
-| `validate <job…>`                                 | Validate job files                                         |
-| `voiceover <job> [--scene] [--force] [--dry-run]` | TTS per scene + captions + durations                       |
-| `stills <job> [--frames]`                         | Key frames + contact sheet                                 |
-| `review <job> [--frames] [--json] [--strict]`     | Graded review, annotated sheet, report                     |
-| `render <job…> [--draft]`                         | MP4 (checks assets first)                                  |
-| `voices`, `audition <id[,id]>`                    | Find and compare ElevenLabs voices                         |
-| `sfx`, `cutout <in> <out>`                        | Regenerate SFX, remove white backgrounds                   |
-
-All commands: `pnpm reelsmith <command>`; run `pnpm reelsmith help` for flags.
-
-## Project layout
-
-```
-reelsmith.config.ts   brand tokens, catalog source, voice settings
-brand/guidelines.md   voice, visual rules, CTA + claims policy
-src/core/             template contract, timeline, captions, frame audit
-src/brand/            brand context, fonts, formatting
-src/components/       shared pieces (CTA, captions, price, SFX, …)
-src/templates/        the four example templates
-cli/                  the reelsmith CLI (jobs, catalog, voiceover, review, render)
-skills/               agent skills (+ references)
-examples/             demo catalog and example jobs
-public/               products, sfx, music, bg, voiceovers, fonts
-```
+- **Catalog per brand:** `brands/<id>/products.json`, `products.csv`, or `catalog.ts`
+  (`export default async () => Product[]` — query your DB/Shopify/API there).
+- **Voice:** ElevenLabs `eleven_v3` per scene with character timestamps → captions + timing.
+  Configure voices in `reelsmith.config.ts`.
+- **Assets:** product images, logos and fonts in `public/brands/<id>/`; licensed music in
+  `public/music/` (git-ignored). SFX are synthesised by code (`pnpm reelsmith sfx`).
 
 ## Licensing
 
-Reelsmith's own code, the generated SFX and the demo artwork are **MIT**.
-Reelsmith depends on **Remotion, which is not open source**: it is free for
-individuals, non-profits and companies with up to 3 employees; larger companies
-need a [Remotion company license](https://www.remotion.dev/license). Check it
-before using Reelsmith commercially. ElevenLabs usage is billed by ElevenLabs.
-
-## Contributing
-
-Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). New templates are
-especially welcome when they show a genuinely different visual language.
+Reelsmith's code, generated SFX and demo artwork are **MIT**. It depends on
+**Remotion, which is not open source**: free for individuals, non-profits and companies
+with up to 3 employees; larger companies need a [Remotion license](https://www.remotion.dev/license).

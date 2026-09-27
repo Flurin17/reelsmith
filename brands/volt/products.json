@@ -1,0 +1,42 @@
+[
+  {
+    "id": "volt-lime",
+    "name": "Lime Strike",
+    "price": 2.99,
+    "category": "Original",
+    "description": "Zero sugar, 160 mg caffeine, sharp lime.",
+    "image": "brands/volt/products/can-lime.svg"
+  },
+  {
+    "id": "volt-pink",
+    "name": "Dragon Rush",
+    "price": 2.99,
+    "category": "Limited",
+    "description": "Dragon fruit and pink grapefruit.",
+    "image": "brands/volt/products/can-pink.svg"
+  },
+  {
+    "id": "volt-ice",
+    "name": "Arctic Ice",
+    "price": 2.79,
+    "category": "Original",
+    "description": "Icy blue raspberry, ice-cold finish.",
+    "image": "brands/volt/products/can-ice.svg"
+  },
+  {
+    "id": "volt-mango",
+    "name": "Mango Surge",
+    "price": 2.79,
+    "category": "Tropical",
+    "description": "Ripe mango with a citrus kick.",
+    "image": "brands/volt/products/can-mango.svg"
+  },
+  {
+    "id": "volt-grape",
+    "name": "Night Grape",
+    "price": 3.29,
+    "category": "Limited",
+    "description": "Dark grape, zero sugar, extra B-vitamins.",
+    "image": "brands/volt/products/can-grape.svg"
+  }
+]

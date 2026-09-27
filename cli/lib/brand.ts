@@ -1,24 +1,10 @@
 /**
- * `reelsmith brand` — sanity-check brand tokens before rendering anything:
- * contrast of every foreground/background pair the templates use.
+ * `reelsmith brand [id]` — check a brand before rendering: resolved tokens and
+ * the contrast of every text/background pair the primitives draw.
  */
-import config from '../../reelsmith.config';
-import { brandSchema, type BrandColors } from '../../src/brand/types';
+import { BRANDS, DEFAULT_BRAND } from '../../brands';
 import { contrastRatio } from '../../src/core/audit';
-
-/** Pairs templates actually draw: [text token, background token, min ratio, where]. */
-export const PAIRS: [keyof BrandColors, keyof BrandColors, number, string][] = [
-  ['ink', 'paper', 4.5, 'body text on light pages'],
-  ['ink', 'surface', 4.5, 'text on cards'],
-  ['inkMuted', 'paper', 4.5, 'secondary text'],
-  ['primary', 'surface', 4.5, 'kicker labels'],
-  ['onPrimary', 'primary', 4.5, 'text on primary blocks'],
-  ['onSecondary', 'secondary', 4.5, 'text on secondary blocks'],
-  ['onNight', 'night', 4.5, 'text on dark templates'],
-  ['onAccent', 'accent', 4.5, 'price badges / chips'],
-  ['highlight', 'night', 3, 'highlight text on dark'],
-  ['surface', 'ink', 4.5, 'inverted text'],
-];
+import { resolveTheme } from '../../src/theme/resolve';
 
 function rgba(color: string): [number, number, number, number] | null {
   const hex = color.trim().replace(/^#/, '');
@@ -27,29 +13,46 @@ function rgba(color: string): [number, number, number, number] | null {
   return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16), 1];
 }
 
-export function brandReport(): { lines: string[]; failures: number } {
-  const brand = brandSchema.parse(config.brand);
+/** [label, text color, background color, minimum ratio] for a brand. */
+export function brandPairs(id: string): [string, string, string, number][] {
+  const raw = BRANDS[id];
+  if (!raw) throw new Error(`Unknown brand "${id}". Known: ${Object.keys(BRANDS).join(', ')}`);
+  const t = resolveTheme(raw);
+  const c = t.colors;
+  const pairs: [string, string, string, number][] = [
+    ['text on bg', c.text, c.bg, 4.5],
+    ['muted on bg', c.muted, c.bg, 4.5],
+    ['text on surface', c.text, c.surface, 4.5],
+    ['onPrimary on primary', c.onPrimary, c.primary, 4.5],
+    ['onAccent on accent', c.onAccent, c.accent, 4.5],
+  ];
+  t.tones.forEach((tn, i) => {
+    pairs.push([`tone ${i}: text on bg`, tn.text, tn.bg, 4.5]);
+    pairs.push([`tone ${i}: onAccent on accent`, tn.onAccent, tn.accent, 3]);
+    if (tn.muted) pairs.push([`tone ${i}: muted on bg`, tn.muted, tn.bg, 3]);
+  });
+  return pairs;
+}
+
+export function brandReport(id = DEFAULT_BRAND): { lines: string[]; failures: number } {
+  const raw = BRANDS[id];
+  if (!raw) throw new Error(`Unknown brand "${id}". Known: ${Object.keys(BRANDS).join(', ')}`);
+  const t = resolveTheme(raw);
   const lines = [
-    `${brand.name} · ${brand.url} · ${brand.locale} · ${brand.currency}`,
-    `fonts: display ${brand.fonts.display.family} (${brand.fonts.display.weights.join('/')}), body ${brand.fonts.body.family} (${brand.fonts.body.weights.join('/')})`,
-    `logo: ${brand.logo || '(text wordmark)'}`,
-    '',
-    'contrast (WCAG):',
+    `${t.id}: ${t.name} · ${t.url} · ${t.locale}/${t.currency}`,
+    `fonts ${t.fonts.display.family} / ${t.fonts.body.family} · radius ${t.shape.radius} · shadow ${t.shape.shadow} · backdrop ${t.backdrop.kind} · reveal ${t.motion.reveal} · ${t.tones.length} tones`,
   ];
   let failures = 0;
-  for (const [fg, bg, min, where] of PAIRS) {
-    const a = rgba(brand.colors[fg]);
-    const b = rgba(brand.colors[bg]);
+  for (const [label, fg, bg, min] of brandPairs(id)) {
+    const a = rgba(fg);
+    const b = rgba(bg);
     if (!a || !b) {
-      lines.push(`  ?    ${fg} on ${bg}: non-hex color, check manually (${where})`);
+      lines.push(`  ?    ${label}: non-hex color, check manually`);
       continue;
     }
-    const ratio = contrastRatio(a, b);
-    const ok = ratio >= min;
-    if (!ok) failures++;
-    lines.push(
-      `  ${ok ? 'ok  ' : 'FAIL'} ${`${fg} on ${bg}`.padEnd(26)} ${ratio.toFixed(2).padStart(5)}:1 (min ${min}) — ${where}`,
-    );
+    const r = contrastRatio(a, b);
+    if (r < min) failures++;
+    lines.push(`  ${r >= min ? 'ok  ' : 'FAIL'} ${label.padEnd(28)} ${r.toFixed(2).padStart(5)}:1 (min ${min})`);
   }
   return { lines, failures };
 }

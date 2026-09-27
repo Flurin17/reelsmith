@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="860" viewBox="0 0 420 860">
+  <defs>
+    <linearGradient id="body" x1="0" x2="1">
+      <stop offset="0" stop-color="#43209c"/><stop offset="0.18" stop-color="#8a5cff"/><stop offset="0.34" stop-color="#d9c9ff"/>
+      <stop offset="0.42" stop-color="#8a5cff"/><stop offset="0.82" stop-color="#8a5cff"/><stop offset="1" stop-color="#43209c"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" x2="1">
+      <stop offset="0" stop-color="#6b6f75"/><stop offset="0.3" stop-color="#e9ecef"/><stop offset="0.55" stop-color="#9aa0a6"/>
+      <stop offset="0.8" stop-color="#d6dade"/><stop offset="1" stop-color="#5d6167"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" x2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="c"><path d="M40 110 Q40 80 70 74 L350 74 Q380 80 380 110 L380 760 Q380 792 350 798 L70 798 Q40 792 40 760 Z"/></clipPath>
+  </defs>
+  <path d="M58 60 Q60 34 100 30 L320 30 Q360 34 362 60 L380 110 L40 110 Z" fill="url(#metal)"/>
+  <ellipse cx="210" cy="36" rx="118" ry="16" fill="#c9cdd2"/>
+  <ellipse cx="210" cy="34" rx="100" ry="11" fill="#8d9298"/>
+  <rect x="175" y="22" width="70" height="18" rx="9" fill="#dfe2e5" stroke="#7a7f85" stroke-width="3"/>
+  <g clip-path="url(#c)">
+    <rect x="40" y="74" width="340" height="730" fill="url(#body)"/>
+    <path d="M40 520 L380 380 L380 470 L40 610 Z" fill="#0c0c0c" opacity="0.92"/>
+    <path d="M232 170 L150 420 L214 420 L178 640 L292 350 L224 350 L262 170 Z" fill="#c8ff00" stroke="#0c0c0c" stroke-width="10" stroke-linejoin="round"/>
+    <rect x="40" y="700" width="340" height="18" fill="#0c0c0c" opacity="0.9"/>
+    <rect x="96" y="74" width="46" height="730" fill="url(#shine)"/>
+  </g>
+  <path d="M40 760 Q40 792 70 798 L350 798 Q380 792 380 760 L372 812 Q360 834 320 836 L100 836 Q60 834 48 812 Z" fill="url(#metal)"/>
+</svg>

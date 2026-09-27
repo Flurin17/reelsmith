@@ -1,12 +1,12 @@
-import type { Template } from '../core/template';
-import { explainer } from './Explainer';
-import { kineticCaptions } from './KineticCaptions';
-import { productSpotlight } from './ProductSpotlight';
-import { topList } from './TopList';
-
 /**
- * Every template Reelsmith can render. Root.tsx registers one Remotion
- * composition per entry; job files select one by `template: "<id>"`.
- * To add a template: create src/templates/<Id>/ and list it here.
+ * Template registry. Add a template: create src/templates/<Id>/index.tsx
+ * (default-export defineTemplate({...})) and add one line below.
  */
-export const TEMPLATES: Template<any>[] = [productSpotlight, explainer, topList, kineticCaptions];
+import type { Template } from '../core/template';
+import AppPromo from './AppPromo';
+import Explainer from './Explainer';
+import KineticCaptions from './KineticCaptions';
+import ProductSpotlight from './ProductSpotlight';
+import TopList from './TopList';
+
+export const TEMPLATES: Template<any>[] = [ProductSpotlight, Explainer, TopList, KineticCaptions, AppPromo];

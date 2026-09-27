@@ -1,8 +1,10 @@
 /**
- * Browser-side media helpers used from calculateMetadata().
+ * Browser-side helpers used from calculateMetadata().
  */
 import { ALL_FORMATS, Input, UrlSource } from 'mediabunny';
 import { staticFile } from 'remotion';
+import { fromSidecarWords, sidecarPath, type CaptionWord, type VoiceoverSidecar } from './captions';
+import { framesForAudio } from './timeline';
 
 /** Duration of public/voiceovers/<file> in seconds, or null if missing/unreadable. */
 export async function audioDurationSeconds(voiceover: string): Promise<number | null> {
@@ -17,12 +19,39 @@ export async function audioDurationSeconds(voiceover: string): Promise<number | 
   }
 }
 
-/** Natural size of an image in public/, or null if it cannot be loaded. */
-export function imageSize(path: string): Promise<{ width: number; height: number } | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve(null);
-    img.src = staticFile(path);
-  });
+async function readSidecar(voiceover: string): Promise<VoiceoverSidecar | null> {
+  try {
+    const res = await fetch(staticFile(`voiceovers/${sidecarPath(voiceover)}`));
+    return res.ok ? ((await res.json()) as VoiceoverSidecar) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * For every scene with a `voiceover`, load its sidecar (written by
+ * `reelsmith voiceover`) and fill `captions` and `duration` unless the job set
+ * them explicitly. Clips without a sidecar are measured instead.
+ */
+export async function withVoiceover<S extends { voiceover?: string; duration?: number; captions?: CaptionWord[] }>(
+  scenes: S[],
+  fps: number,
+  tailPadding = 0.3,
+): Promise<S[]> {
+  return Promise.all(
+    scenes.map(async (scene) => {
+      if (!scene.voiceover) return scene;
+      const sidecar = await readSidecar(scene.voiceover);
+      if (sidecar) {
+        return {
+          ...scene,
+          captions: scene.captions?.length ? scene.captions : fromSidecarWords(sidecar.words),
+          duration: scene.duration ?? framesForAudio(sidecar.speechEnd, fps, tailPadding),
+        };
+      }
+      if (scene.duration != null) return scene;
+      const seconds = await audioDurationSeconds(scene.voiceover);
+      return seconds == null ? scene : { ...scene, duration: framesForAudio(seconds, fps, tailPadding) };
+    }),
+  );
 }

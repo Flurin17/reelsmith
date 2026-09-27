@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="900" viewBox="0 0 360 900">
+  <defs>
+    <linearGradient id="tube" x1="0" x2="1">
+      <stop offset="0" stop-color="#d9a898"/><stop offset="0.25" stop-color="#f6d8cd"/><stop offset="0.4" stop-color="#fdeee8"/>
+      <stop offset="0.8" stop-color="#eec3b5"/><stop offset="1" stop-color="#cc9785"/>
+    </linearGradient>
+    <linearGradient id="cap" x1="0" x2="1">
+      <stop offset="0" stop-color="#9c4f3b"/><stop offset="0.35" stop-color="#df8f78"/><stop offset="0.6" stop-color="#c96f58"/><stop offset="1" stop-color="#8a4131"/>
+    </linearGradient>
+  </defs>
+  <path d="M40 40 L320 40 L300 630 Q296 660 270 664 L90 664 Q64 660 60 630 Z" fill="url(#tube)"/>
+  <rect x="36" y="22" width="288" height="34" rx="6" fill="#e7bcae"/>
+  <g stroke="#b77d6c" stroke-opacity="0.5" stroke-width="3">
+    <line x1="60" y1="30" x2="60" y2="50"/><line x1="90" y1="30" x2="90" y2="50"/><line x1="120" y1="30" x2="120" y2="50"/>
+    <line x1="150" y1="30" x2="150" y2="50"/><line x1="180" y1="30" x2="180" y2="50"/><line x1="210" y1="30" x2="210" y2="50"/>
+    <line x1="240" y1="30" x2="240" y2="50"/><line x1="270" y1="30" x2="270" y2="50"/><line x1="300" y1="30" x2="300" y2="50"/>
+  </g>
+  <rect x="110" y="250" width="140" height="6" rx="3" fill="#3a2722" opacity="0.75"/>
+  <rect x="130" y="276" width="100" height="4" rx="2" fill="#3a2722" opacity="0.4"/>
+  <path d="M150 400 Q180 350 210 400 Q180 450 150 400 Z" fill="#566649"/>
+  <path d="M86 664 L274 664 L286 840 Q286 880 246 884 L114 884 Q74 880 74 840 Z" fill="url(#cap)"/>
+  <path d="M84 80 L102 620" stroke="#fff" stroke-opacity="0.55" stroke-width="12" stroke-linecap="round"/>
+</svg>

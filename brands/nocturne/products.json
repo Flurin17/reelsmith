@@ -1,0 +1,18 @@
+[
+  {
+    "id": "nocturne-one",
+    "name": "Nocturne One",
+    "price": 349,
+    "category": "Over-ear",
+    "description": "Forty hours of battery, adaptive noise cancelling and memory-foam cushions.",
+    "image": "brands/nocturne/products/headphones.svg"
+  },
+  {
+    "id": "nocturne-buds",
+    "name": "Nocturne Buds",
+    "price": 199,
+    "category": "In-ear",
+    "description": "Pocket-size, eight hours per charge, spatial audio.",
+    "image": "brands/nocturne/products/earbuds.svg"
+  }
+]

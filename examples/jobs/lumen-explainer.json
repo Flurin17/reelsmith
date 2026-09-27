@@ -1,0 +1,53 @@
+{
+  "template": "Explainer",
+  "props": {
+    "brand": "lumen",
+    "scenes": [
+      {
+        "id": "hook",
+        "kicker": "Evening light",
+        "headline": "Your lamp is *too bright*",
+        "say": "[curious] Why does your living room feel like an office at night?",
+        "visual": {
+          "type": "product",
+          "image": "brands/lumen/products/lamp.svg",
+          "label": "Dome Lamp"
+        }
+      },
+      {
+        "id": "kelvin",
+        "kicker": "The fix",
+        "headline": "Go warm: *2700 K* or lower",
+        "say": "Swap cold white bulbs for warm ones, around twenty-seven hundred kelvin.",
+        "visual": {
+          "type": "stat",
+          "value": 2700,
+          "suffix": " K",
+          "label": "warm white"
+        }
+      },
+      {
+        "id": "layers",
+        "kicker": "Then layer it",
+        "headline": "Three lights, not one",
+        "say": "Use three low lights instead of one bright ceiling lamp.",
+        "visual": {
+          "type": "list",
+          "items": [
+            "Eye-level lamp",
+            "A candle",
+            "Nothing overhead"
+          ]
+        }
+      },
+      {
+        "id": "cta",
+        "headline": "Make evenings *slower*",
+        "say": "[warmly] Find your lamp on our site.",
+        "visual": {
+          "type": "cta"
+        }
+      }
+    ]
+  }
+}

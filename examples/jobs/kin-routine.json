@@ -1,0 +1,32 @@
+{
+  "template": "KineticCaptions",
+  "props": {
+    "brand": "kin",
+    "scenes": [
+      {
+        "id": "hook",
+        "say": "[softly] You do *not* need a ten-step routine."
+      },
+      {
+        "id": "clean",
+        "say": "Start with a cleanser that *never* strips.",
+        "image": "brands/kin/products/cleanser.svg"
+      },
+      {
+        "id": "serum",
+        "say": "Then one serum for your *barrier*.",
+        "image": "brands/kin/products/serum.svg"
+      },
+      {
+        "id": "cream",
+        "say": "Seal it in with a light *cream*. That is it.",
+        "image": "brands/kin/products/cream.svg"
+      },
+      {
+        "id": "cta",
+        "say": "[warmly] Three steps. *Better* skin.",
+        "cta": true
+      }
+    ]
+  }
+}

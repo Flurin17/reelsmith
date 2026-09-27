@@ -48,7 +48,7 @@ export interface StillsResult {
 
 export async function renderStills(
   job: LoadedJob,
-  opts: { frames?: number[]; extraFrames?: number[]; outDir: string; audit?: boolean },
+  opts: { frames?: number[]; extraFrames?: number[]; outDir: string; audit?: boolean; sheet?: boolean },
 ): Promise<StillsResult> {
   const { url, composition } = await compositionFor(job);
   const template = getTemplate(job.template);
@@ -81,7 +81,7 @@ export async function renderStills(
     files.push(output);
   }
   const sheet = join(opts.outDir, 'sheet.png');
-  await contactSheet(files, sheet, frames, composition.fps);
+  if (opts.sheet !== false) await contactSheet(files, sheet, frames, composition.fps);
   return {
     files,
     sheet,
@@ -95,8 +95,9 @@ export async function renderStills(
 
 /** One image with all stills side by side (+ timestamps) for quick review. */
 export async function contactSheet(files: string[], out: string, frames: number[], fps: number): Promise<void> {
-  const w = 360;
-  const h = 640;
+  // Small tiles on purpose: agents read this image, and pixels cost tokens.
+  const w = 288;
+  const h = 512;
   const gap = 12;
   const label = 44;
   const perRow = Math.min(files.length, 5);
@@ -105,7 +106,7 @@ export async function contactSheet(files: string[], out: string, frames: number[
     files.map(async (file, i) => {
       const img = await sharp(file).resize(w, h).toBuffer();
       const text = Buffer.from(
-        `<svg width="${w}" height="${label}"><rect width="100%" height="100%" fill="#111"/><text x="12" y="30" font-family="Helvetica, Arial" font-size="22" fill="#fff">#${i + 1} · frame ${frames[i]} · ${(frames[i] / fps).toFixed(2)}s</text></svg>`,
+        `<svg width="${w}" height="${label}"><rect width="100%" height="100%" fill="#111"/><text x="12" y="30" font-family="Helvetica, Arial" font-size="20" fill="#fff">#${i + 1} · frame ${frames[i]} · ${(frames[i] / fps).toFixed(2)}s</text></svg>`,
       );
       return { img, text, i };
     }),

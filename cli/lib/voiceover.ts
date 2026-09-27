@@ -1,21 +1,20 @@
 /**
- * Per-scene voiceover generation for any template whose props have
- * `scenes[]` with `voiceoverText` (single voice) or `dialogue` (multi voice).
+ * Per-scene voiceover for any template whose props have `scenes[]` with `say`
+ * (single voice) or `dialogue` (multi voice).
  *
  * For each scene it:
  *  1. skips unchanged scenes (content hash in public/voiceovers/<slug>/manifest.json),
- *  2. synthesises one MP3 per scene (never one long file — scene timing stays simple),
- *  3. stores word timings as `captions` and sets `duration` to fit the speech,
- *  4. writes the updated props back into the job file.
+ *  2. synthesises one MP3 per scene (keeps timing simple, lets you redo one scene),
+ *  3. writes a compact sidecar <scene>.json (speech end + word timings) next to it,
+ *  4. sets only `voiceover: "<slug>/<scene>.mp3"` in the job — durations and
+ *     captions are read from the sidecar at render time, so jobs stay small.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import config from '../../reelsmith.config';
 import type { VoiceConfig } from '../../src/config';
-import { stripAudioTags, type CaptionWord } from '../../src/core/captions';
-import { VIDEO } from '../../src/core/template';
-import { framesForAudio } from '../../src/core/timeline';
+import { sidecarPath, stripAudioTags, toSidecarWords, type VoiceoverSidecar } from '../../src/core/captions';
 import { PUBLIC, rel } from './env';
 import { writeJob, type LoadedJob } from './jobs';
 import { decodePcm, speechBounds } from './speech';
@@ -23,21 +22,19 @@ import { createProvider, type TtsProvider } from './tts';
 
 interface SceneLike {
   id: string;
-  voiceoverText?: string;
+  say?: string;
   dialogue?: { speaker: string; text: string }[];
   voiceover?: string;
-  captions?: CaptionWord[];
-  duration?: number;
-  from?: number;
 }
 
 export interface VoiceoverOptions {
   scene?: string;
   force?: boolean;
   dryRun?: boolean;
-  /** Keep explicit `from` values instead of re-flowing scenes back-to-back. */
-  keepFrom?: boolean;
 }
+
+/** What the TTS receives: emphasis markers removed, audio tags kept. */
+export const spokenText = (say: string) => say.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
 
 function voiceConfig(): VoiceConfig {
   if (!config.voice) throw new Error('No `voice` section in reelsmith.config.ts');
@@ -50,12 +47,11 @@ function voiceIdFor(voice: VoiceConfig, key: string): string {
   return id;
 }
 
-/** Everything that changes the audio goes into the cache key. */
 function sceneHash(scene: SceneLike, voice: VoiceConfig): string {
   return createHash('sha1')
     .update(
       JSON.stringify({
-        text: scene.voiceoverText ?? '',
+        say: spokenText(scene.say ?? ''),
         dialogue: scene.dialogue ?? [],
         model: voice.model,
         lang: voice.languageCode,
@@ -67,14 +63,13 @@ function sceneHash(scene: SceneLike, voice: VoiceConfig): string {
     .slice(0, 16);
 }
 
-const hasSpeech = (s: SceneLike) => Boolean(s.voiceoverText?.trim()) || (s.dialogue?.length ?? 0) > 0;
+const speaks = (s: SceneLike) => Boolean(s.say?.trim()) || (s.dialogue?.length ?? 0) > 0;
 
 export async function generateVoiceovers(job: LoadedJob, opts: VoiceoverOptions = {}): Promise<void> {
   const scenes = job.props.scenes as SceneLike[] | undefined;
   if (!Array.isArray(scenes))
-    throw new Error(`${job.template} has no scenes[] — voiceover works on scene-based templates.`);
+    throw new Error(`${job.template} has no scenes[]; voiceover works on narrated templates.`);
   const voice = voiceConfig();
-  const tail = voice.tailPadding ?? 0.3;
   const dir = join(PUBLIC, 'voiceovers', job.slug);
   const manifestPath = join(dir, 'manifest.json');
   const manifest: Record<string, string> = existsSync(manifestPath)
@@ -88,56 +83,60 @@ export async function generateVoiceovers(job: LoadedJob, opts: VoiceoverOptions 
     const file = `${job.slug}/${scene.id}.mp3`;
     const abs = join(PUBLIC, 'voiceovers', file);
 
-    if (!hasSpeech(scene)) {
-      // A hand-made clip without timings: measure it so the scene fits.
-      if (scene.voiceover && existsSync(join(PUBLIC, 'voiceovers', scene.voiceover)) && scene.duration == null) {
-        const { speechEnd } = speechBounds(decodePcm(join(PUBLIC, 'voiceovers', scene.voiceover)));
-        scene.duration = framesForAudio(speechEnd, VIDEO.fps, tail);
-        changed = true;
-        console.log(`  ${scene.id}: measured ${scene.voiceover} → ${scene.duration}f`);
+    if (!speaks(scene)) {
+      // A hand-made clip without timings: write a sidecar from measured audio.
+      if (scene.voiceover && existsSync(join(PUBLIC, 'voiceovers', scene.voiceover))) {
+        const side = join(PUBLIC, 'voiceovers', sidecarPath(scene.voiceover));
+        if (!existsSync(side) || opts.force) {
+          const { speechEnd } = speechBounds(decodePcm(join(PUBLIC, 'voiceovers', scene.voiceover)));
+          writeFileSync(side, JSON.stringify({ speechEnd: Number(speechEnd.toFixed(3)), words: [] }));
+          console.log(`  ${scene.id}: measured ${scene.voiceover} (${speechEnd.toFixed(2)}s)`);
+        }
       }
       continue;
     }
 
     const hash = sceneHash(scene, voice);
-    const upToDate = !opts.force && manifest[scene.id] === hash && existsSync(abs) && scene.voiceover === file;
-    if (upToDate) {
-      console.log(`  ${scene.id}: unchanged (cached)`);
+    if (!opts.force && manifest[scene.id] === hash && existsSync(abs) && scene.voiceover === file) {
+      console.log(`  ${scene.id}: unchanged`);
       continue;
     }
     const preview = scene.dialogue?.length
       ? scene.dialogue.map((d) => `${d.speaker}: ${d.text}`).join(' / ')
-      : (scene.voiceoverText ?? '');
+      : spokenText(scene.say ?? '');
     if (opts.dryRun) {
-      console.log(`  ${scene.id}: would synthesise "${preview}"`);
+      console.log(`  ${scene.id}: would say "${preview}"`);
       continue;
     }
 
     provider ??= createProvider(voice);
     const result = scene.dialogue?.length
       ? await provider.dialogue(
-          scene.dialogue.map((d) => ({ speaker: d.speaker, text: d.text, voiceId: voiceIdFor(voice, d.speaker) })),
+          scene.dialogue.map((d) => ({
+            speaker: d.speaker,
+            text: spokenText(d.text),
+            voiceId: voiceIdFor(voice, d.speaker),
+          })),
         )
-      : await provider.speak(scene.voiceoverText!, voiceIdFor(voice, 'narrator'));
+      : await provider.speak(spokenText(scene.say!), voiceIdFor(voice, 'narrator'));
 
     mkdirSync(dir, { recursive: true });
     writeFileSync(abs, result.audio);
-    manifest[scene.id] = hash;
-
     const speechEnd = result.captions.length ? result.captions.at(-1)!.end : speechBounds(decodePcm(abs)).speechEnd;
+    const sidecar: VoiceoverSidecar = {
+      speechEnd: Number(speechEnd.toFixed(3)),
+      words: toSidecarWords(result.captions),
+    };
+    writeFileSync(join(PUBLIC, 'voiceovers', sidecarPath(file)), JSON.stringify(sidecar));
+    manifest[scene.id] = hash;
     scene.voiceover = file;
-    scene.captions = result.captions;
-    scene.duration = framesForAudio(speechEnd, VIDEO.fps, tail);
     changed = true;
-    console.log(
-      `  ${scene.id}: ${rel(abs)} · ${speechEnd.toFixed(2)}s speech → ${scene.duration}f · "${stripAudioTags(preview).slice(0, 60)}"`,
-    );
+    console.log(`  ${scene.id}: ${rel(abs)} · ${speechEnd.toFixed(2)}s · "${stripAudioTags(preview).slice(0, 60)}"`);
   }
 
   if (!changed || opts.dryRun) return;
-  if (!opts.keepFrom) for (const scene of scenes) delete scene.from;
   mkdirSync(dir, { recursive: true });
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   writeJob(job.path, job);
-  console.log(`✓ Updated ${rel(job.path)} (voiceover, captions, durations)`);
+  console.log(`✓ ${rel(job.path)} now references the clips; timings live in the sidecars`);
 }

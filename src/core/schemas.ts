@@ -48,7 +48,7 @@ export const productSchema = z.object({
   /** Short category / tag line, e.g. "Headphones". */
   category: z.string().default(''),
   description: z.string().default(''),
-  /** File in public/products. Empty = styled placeholder. */
+  /** Path inside public/ (e.g. 'brands/volt/products/can.svg') or URL. Empty = placeholder. */
   image: z.string().default(''),
 });
 export type ProductItem = z.infer<typeof productSchema>;

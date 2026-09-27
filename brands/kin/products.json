@@ -1,0 +1,26 @@
+[
+  {
+    "id": "kin-serum",
+    "name": "Barrier Serum",
+    "price": 38,
+    "category": "Serum",
+    "description": "Ceramides and oat to calm and repair.",
+    "image": "brands/kin/products/serum.svg"
+  },
+  {
+    "id": "kin-cream",
+    "name": "Cloud Cream",
+    "price": 34,
+    "category": "Moisturiser",
+    "description": "Light, fragrance-free daily moisturiser.",
+    "image": "brands/kin/products/cream.svg"
+  },
+  {
+    "id": "kin-cleanser",
+    "name": "Soft Cleanser",
+    "price": 22,
+    "category": "Cleanser",
+    "description": "A low-foam gel that never strips.",
+    "image": "brands/kin/products/cleanser.svg"
+  }
+]

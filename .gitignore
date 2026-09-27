@@ -21,7 +21,8 @@ public/music/*
 !public/music/README.md
 public/bg/*
 !public/bg/README.md
-public/products/*.source.*
+# Catalog images copied/downloaded by the CLI
+public/products/
 
 # Local scratch
 .legacy/

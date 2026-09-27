@@ -1,19 +1,23 @@
 /**
  * Product catalog: where product-driven templates get their data.
  *
- * Configure in reelsmith.config.ts:
- *   catalog: { type: 'json', path: 'data/products.json' }
- *   catalog: { type: 'csv', path: 'data/products.csv' }
- *   catalog: { type: 'module', path: 'data/catalog.ts' }  // default export: () => Promise<Product[]>
+ * Found per brand by convention (first match wins):
+ *   brands/<id>/catalog.ts     default export: () => Promise<Product[]>  (DB, Shopify, API…)
+ *   brands/<id>/products.json  array of products
+ *   brands/<id>/products.csv   header: id,name,price,category,description,image,available
+ * Fallback: `catalog` in reelsmith.config.ts.
  *
- * Images are copied (or downloaded) into public/products so Remotion can
- * serve them; with `images.cutout`, white studio backgrounds are removed.
+ * `image` may be a path inside public/, a path relative to the repo, or a URL;
+ * non-public files are copied/downloaded into public/products (optionally with
+ * white-background removal, `images.cutout`).
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
+import { DEFAULT_BRAND } from '../../brands';
 import config from '../../reelsmith.config';
+import type { CatalogConfig } from '../../src/config';
 import type { ProductItem } from '../../src/core/schemas';
 import { slugify } from '../../src/core/text';
 import { removeWhiteBackground } from './cutout';
@@ -25,7 +29,7 @@ export const product = z.object({
   price: z.coerce.number().nonnegative(),
   category: z.string().default(''),
   description: z.string().default(''),
-  /** URL, path relative to the project root, or a file already in public/products. */
+  /** Path inside public/, path relative to the repo, or URL. */
   image: z.string().default(''),
   /** false = excluded from lists (e.g. out of stock). */
   available: z
@@ -71,9 +75,20 @@ export function parseCsv(text: string): Record<string, string>[] {
   return body.map((r) => Object.fromEntries(keys.map((k, i) => [k, (r[i] ?? '').trim()])));
 }
 
-export async function loadCatalog(): Promise<Product[]> {
-  const source = config.catalog;
-  if (!source) throw new Error('No catalog configured. Add `catalog` to reelsmith.config.ts.');
+/** Catalog source for a brand (convention first, then the config fallback). */
+export function catalogSource(brand = DEFAULT_BRAND): CatalogConfig | null {
+  const dir = join(ROOT, 'brands', brand);
+  const candidates: CatalogConfig[] = [
+    { type: 'module', path: `brands/${brand}/catalog.ts` },
+    { type: 'json', path: `brands/${brand}/products.json` },
+    { type: 'csv', path: `brands/${brand}/products.csv` },
+  ];
+  return candidates.find((c) => existsSync(join(dir, c.path.split('/').pop()!))) ?? config.catalog ?? null;
+}
+
+export async function loadCatalog(brand?: string): Promise<Product[]> {
+  const source = catalogSource(brand);
+  if (!source) throw new Error(`No catalog for brand "${brand ?? DEFAULT_BRAND}". Add brands/<id>/products.json.`);
   const abs = resolve(ROOT, source.path);
   if (!existsSync(abs)) throw new Error(`Catalog file not found: ${source.path}`);
 
@@ -136,48 +151,40 @@ function seededShuffle<T>(items: T[], seed: number): T[] {
 const PRODUCTS_DIR = join(PUBLIC, 'products');
 
 /**
- * Make a product image available under public/products and return its file
- * name there ('' when the product has no image).
+ * Return a path inside public/ for a product image ('' when none), copying or
+ * downloading it into public/products when it isn't served yet.
  */
 export async function resolveProductImage(p: Product, opts: { refresh?: boolean } = {}): Promise<string> {
   if (!p.image) return '';
+  const cutout = Boolean(config.images?.cutout);
+  const isUrl = /^https?:\/\//i.test(p.image);
+  if (!isUrl && existsSync(join(PUBLIC, p.image)) && !cutout) return p.image;
+
   mkdirSync(PRODUCTS_DIR, { recursive: true });
   const base = slugify(p.id) || slugify(p.name);
-  const cutout = Boolean(config.images?.cutout);
-
-  // Already served from public/products.
-  if (!p.image.includes('/') && existsSync(join(PRODUCTS_DIR, p.image)) && !cutout) return p.image;
-
-  let ext = extname(new URL(p.image, 'file:///').pathname).toLowerCase() || '.png';
+  const ext = (extname(new URL(p.image, 'file:///').pathname).toLowerCase() || '.png').replace('.jpeg', '.jpg');
   const raw = join(PRODUCTS_DIR, `${base}.source${ext}`);
-  if (/^https?:\/\//i.test(p.image)) {
+  if (isUrl) {
     if (opts.refresh || !existsSync(raw)) {
       const res = await fetch(p.image);
       if (!res.ok) throw new Error(`Could not download image for ${p.id}: HTTP ${res.status}`);
       writeFileSync(raw, Buffer.from(await res.arrayBuffer()));
     }
   } else {
-    const src = [resolve(ROOT, p.image), join(PRODUCTS_DIR, p.image)].find((c) => existsSync(c));
+    const src = [join(PUBLIC, p.image), resolve(ROOT, p.image)].find((c) => existsSync(c));
     if (!src) {
-      console.warn(`  ! image not found for ${p.id}: ${p.image} (rendering a placeholder)`);
+      console.warn(`  ! image not found for ${p.id}: ${p.image} (placeholder will be rendered)`);
       return '';
-    }
-    if (!cutout) {
-      const name = `${base}${ext}`;
-      if (resolve(src) !== join(PRODUCTS_DIR, name)) copyFileSync(src, join(PRODUCTS_DIR, name));
-      return name;
     }
     copyFileSync(src, raw);
   }
-
   if (cutout && ext !== '.svg') {
     const out = `${base}.png`;
     if (opts.refresh || !existsSync(join(PRODUCTS_DIR, out))) await removeWhiteBackground(raw, join(PRODUCTS_DIR, out));
-    return out;
+    return `products/${out}`;
   }
-  const name = `${base}${ext}`;
-  copyFileSync(raw, join(PRODUCTS_DIR, name));
-  return name;
+  copyFileSync(raw, join(PRODUCTS_DIR, `${base}${ext}`));
+  return `products/${base}${ext}`;
 }
 
 /** Catalog product → the ProductItem shape templates consume. */

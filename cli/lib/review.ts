@@ -6,17 +6,17 @@
  *     text under platform UI, overlaps, tiny text, low contrast, broken images.
  *  2. Job checks (props + files): missing assets, voiceover state, speech cut
  *     off by short scenes, reading speed, total length, hook in the first second.
- *  3. Template lint (source): hardcoded colors / fonts instead of useBrand().
+ *  3. Template lint (source): hardcoded colors / fonts instead of useTheme().
  *
  * Output (out/review/<slug>/): report.md, report.json, frames/, annotated/,
- * sheet.png, sheet-annotated.png, history.json.
+ * sheet.png (issues boxed in place), history.json.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { PLATFORM_UI, type AuditFrame, type AuditIssue } from '../../src/core/audit';
+import { PLATFORM_UI, contrastRatio, type AuditFrame, type AuditIssue } from '../../src/core/audit';
 import { stripAudioTags, type CaptionWord } from '../../src/core/captions';
-import { layoutScenes } from '../../src/core/timeline';
+import { placeScenes } from '../../src/core/scenes';
 import { PUBLIC, ROOT, rel } from './env';
 import type { LoadedJob } from './jobs';
 import { contactSheet, renderStills } from './render';
@@ -43,18 +43,17 @@ export interface ReviewResult {
   findings: Finding[];
   frames: { frame: number; time: number; scene?: string; file: string; annotated?: string; issues: number }[];
   sheet: string;
-  annotatedSheet: string;
   report: string;
 }
 
 const FIX: Record<string, string> = {
-  'text-off-canvas': 'Shrink the text (autoSize/fitParagraph), shorten the copy, or move it inside SAFE.',
-  'text-clipped': 'Let the container grow or size the text to it (autoSize); shorten the copy.',
+  'text-off-canvas': 'Size text with fitSize(), shorten the copy, or move it inside SAFE.',
+  'text-clipped': 'Let the container grow or size the text to it with fitSize(); shorten the copy.',
   'platform-ui-overlap': 'Move text inside the safe area (SAFE in src/core/template.ts); platform UI covers this zone.',
   'text-overlap': 'Give the elements their own space (gap/padding/position) or reduce their size.',
   'text-too-small': 'Use at least 28px (ideally 34px+) so text reads on a phone at arm’s length.',
   'low-contrast':
-    'Pair tokens with enough contrast: ink on paper/surface, onPrimary on primary, onSecondary on secondary.',
+    'Use token pairs that pass `pnpm reelsmith brand <id>` (tone.text on tone.bg, onAccent on accent, colors.text on colors.surface).',
   'image-missing': 'Check the file exists under public/ and the prop path is right.',
   'asset-missing': 'Add the file under public/ (or fix the path), or clear the prop to use the fallback.',
   'voiceover-missing': 'Run `pnpm reelsmith voiceover <job>` to synthesise narration, captions and durations.',
@@ -66,9 +65,9 @@ const FIX: Record<string, string> = {
   'no-hook-text': 'Put a hook headline on screen within the first second.',
   'blank-frame': 'This frame is (nearly) empty — check timing, fades and missing assets.',
   'text-not-painted':
-    'The text is in the DOM but no glyphs show up in the pixels: same color as its background, faded out, or a custom font that is not awaited with delayRender() (headless Chrome paints no text while a webfont is loading). Use the brand fonts via useBrand().',
+    'The text is in the DOM but no glyphs show up in the pixels: same color as its background, faded out, or a custom font that is not awaited with delayRender() (headless Chrome paints no text while a webfont is loading). Use the brand fonts via useTheme().',
   'hardcoded-style':
-    'Use useBrand() tokens (colors.*, font.*, alpha()) instead of literals so the template follows the brand.',
+    'Use useTheme() tokens (colors, tone(i), type(), shadow(), alpha()) instead of literals so the template follows every brand.',
 };
 
 const PENALTY: Record<Severity, number> = { error: 15, warn: 5, info: 0 };
@@ -80,7 +79,7 @@ type Scene = {
   from: number;
   duration: number;
   voiceover?: string;
-  voiceoverText?: string;
+  say?: string;
   dialogue?: unknown[];
   captions?: CaptionWord[];
   [k: string]: unknown;
@@ -91,7 +90,9 @@ function onScreenWords(scene: Record<string, unknown>): number {
   const ignore = new Set([
     'id',
     'voiceover',
-    'voiceoverText',
+    'say',
+    'tone',
+    'cta',
     'dialogue',
     'captions',
     'image',
@@ -119,7 +120,7 @@ export function assetChecks(props: Record<string, unknown>): Finding[] {
       findings.push({
         rule: 'asset-missing',
         severity: 'error',
-        message: `${where}: public/${folder}/${file} does not exist`,
+        message: `${where}: public/${folder ? `${folder}/` : ''}${file} does not exist`,
         fix: FIX['asset-missing'],
       });
     }
@@ -129,8 +130,9 @@ export function assetChecks(props: Record<string, unknown>): Finding[] {
     else if (v && typeof v === 'object') {
       for (const [k, x] of Object.entries(v)) {
         const p = path ? `${path}.${k}` : k;
-        if (k === 'image') check('products', x, p);
-        else if (k === 'voiceover') check('voiceovers', x, p);
+        if (k === 'image') {
+          if (typeof x === 'string' && x && !/^https?:\/\//.test(x)) check('', x, p);
+        } else if (k === 'voiceover') check('voiceovers', x, p);
         else if (path === 'music' && k === 'file') check('music', x, p);
         else if (path === 'sfx' && typeof x === 'string') check('sfx', x, p);
         else if (path === 'backgrounds' && typeof x === 'string') check('bg', x, p);
@@ -145,15 +147,13 @@ export function assetChecks(props: Record<string, unknown>): Finding[] {
 function sceneChecks(props: Record<string, unknown>, fps: number): { findings: Finding[]; scenes: Scene[] } {
   const raw = props.scenes;
   if (!Array.isArray(raw)) return { findings: [], scenes: [] };
-  const defaultFrames = Math.round((Number(props.defaultSceneSeconds) || 4) * fps);
-  const scenes = layoutScenes(raw as Scene[], defaultFrames) as Scene[];
+  const scenes = placeScenes(raw as (Scene & { say: string; voiceover: string })[], fps) as Scene[];
   const findings: Finding[] = [];
   const showsCaptions = props.showCaptions !== false;
 
   for (const s of scenes) {
     const seconds = s.duration / fps;
-    const speaks =
-      Boolean(String(s.voiceoverText ?? '').trim()) || (Array.isArray(s.dialogue) && s.dialogue.length > 0);
+    const speaks = Boolean(String(s.say ?? '').trim()) || (Array.isArray(s.dialogue) && s.dialogue.length > 0);
     if (speaks && !s.voiceover) {
       // Without a TTS key the agent can't fix this itself — report, don't penalise.
       const canFix = Boolean(process.env.ELEVENLABS_API_KEY);
@@ -227,12 +227,22 @@ export function lintTemplateSource(source: string): { line: number; match: strin
   const lines = source.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).split('\n');
   lines.forEach((raw, i) => {
     const line = raw.replace(/\/\/.*$/, '');
-    const hex = line.match(/['"`][^'"`]*#[0-9a-fA-F]{3,8}\b/);
+    // A color literal: a string that IS a hex color, or CSS using one ("0 0 0 #abc", "linear-gradient(#abc…").
+    // Pure black/white are neutral and allowed (like rgba(0,0,0,…)).
+    const hex = [...line.matchAll(/['"`]([^'"`]*)['"`]/g)]
+      .map((m) => m[1])
+      .find((str) => {
+        const colors = [...str.matchAll(/(^|[\s(,])#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g)].map((m) =>
+          m[2].toLowerCase(),
+        );
+        const css = /^\s*#[0-9a-f]{3,8}\s*$/i.test(str) || /gradient\(|solid|px|rgba?\(/.test(str);
+        return css && colors.some((c) => !/^(f{3}|f{6}|0{3}|0{6}|f{8}|0{8})$/.test(c));
+      });
     const rgb = [...line.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)].find(
       (m) => !(m[1] === m[2] && m[2] === m[3] && (m[1] === '0' || m[1] === '255')),
     );
     const font = line.match(/fontFamily:\s*['"`][^'"`]+['"`]/);
-    const found = hex?.[0] ?? rgb?.[0] ?? font?.[0];
+    const found = hex ?? rgb?.[0] ?? font?.[0];
     if (found) hits.push({ line: i + 1, match: found.trim() });
   });
   return hits;
@@ -296,23 +306,90 @@ async function annotate(file: string, out: string, issues: AuditIssue[]): Promis
     .toFile(out);
 }
 
-/** Text boxes whose pixels are (almost) uniform: text is in the DOM but not visible. */
-async function unpaintedTexts(file: string, audit: AuditFrame | undefined): Promise<AuditFrame['texts']> {
-  if (!audit?.texts?.length) return [];
-  const { width = 1080, height = 1920 } = await sharp(file).metadata();
-  const out: AuditFrame['texts'] = [];
-  for (const t of audit.texts) {
-    const left = Math.max(0, Math.floor(t.box.x));
-    const top = Math.max(0, Math.floor(t.box.y));
-    const w = Math.min(width - left, Math.ceil(t.box.w));
-    const h = Math.min(height - top, Math.ceil(t.box.h));
-    if (w < 8 || h < 8) continue;
-    // stats() reads the pipeline *input*, so materialise the crop first.
-    const crop = await sharp(file).extract({ left, top, width: w, height: h }).toBuffer();
-    const stats = await sharp(crop).stats();
-    if (stats.channels.slice(0, 3).every((c) => c.stdev < 5)) out.push(t);
+type Raw = { data: Buffer; width: number; height: number; channels: number };
+
+async function loadRaw(file: string): Promise<Raw> {
+  const { data, info } = await sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height, channels: info.channels };
+}
+
+const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+/** Pixels of a rectangle (clamped to the image), as [r,g,b] triples. */
+function pixels(img: Raw, x0: number, y0: number, x1: number, y1: number): number[][] {
+  const out: number[][] = [];
+  const xs = Math.max(0, Math.floor(x0));
+  const ys = Math.max(0, Math.floor(y0));
+  const xe = Math.min(img.width, Math.ceil(x1));
+  const ye = Math.min(img.height, Math.ceil(y1));
+  for (let y = ys; y < ye; y += 2) {
+    for (let x = xs; x < xe; x += 2) {
+      const i = (y * img.width + x) * img.channels;
+      out.push([img.data[i], img.data[i + 1], img.data[i + 2]]);
+    }
   }
   return out;
+}
+
+const stdev = (vals: number[]) => {
+  const m = vals.reduce((a, b) => a + b, 0) / Math.max(vals.length, 1);
+  return Math.sqrt(vals.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(vals.length, 1));
+};
+const median = (vals: number[]) => [...vals].sort((a, b) => a - b)[Math.floor(vals.length / 2)] ?? 0;
+
+function parseCss(color: string): [number, number, number, number] | null {
+  const m = color.match(/rgba?\(([^)]+)\)/);
+  if (!m) return null;
+  const p = m[1]
+    .split(/[ ,/]+/)
+    .filter(Boolean)
+    .map(Number);
+  return [p[0], p[1], p[2], p[3] ?? 1];
+}
+
+/**
+ * Pixel checks per text box: (1) is anything painted inside it, and (2) the
+ * contrast between the text color and the background actually rendered right
+ * around it (a thin ring outside the glyph box) — robust to layered tones,
+ * gradients and images, which a DOM walk cannot see.
+ */
+function pixelChecks(img: Raw, audit: AuditFrame | undefined) {
+  const unpainted: AuditFrame['texts'] = [];
+  const lowContrast: { t: AuditFrame['texts'][number]; ratio: number; needed: number }[] = [];
+  for (const t of audit?.texts ?? []) {
+    const { x, y, w, h } = t.box;
+    if (w < 8 || h < 8) continue;
+    const inside = pixels(img, x, y, x + w, y + h);
+    if (inside.length && ['r', 'g', 'b'].every((_, c) => stdev(inside.map((p) => p[c])) < 5)) {
+      unpainted.push(t);
+      continue;
+    }
+    const m = 4;
+    const k = 6;
+    const ring = [
+      ...pixels(img, x - m - k, y - m - k, x + w + m + k, y - m),
+      ...pixels(img, x - m - k, y + h + m, x + w + m + k, y + h + m + k),
+      ...pixels(img, x - m - k, y - m, x - m, y + h + m),
+      ...pixels(img, x + w + m, y - m, x + w + m + k, y + h + m),
+    ];
+    const fg = parseCss(t.color);
+    if (!fg || t.shadow || ring.length < 20) continue;
+    if (stdev(ring.map((p) => luma(p[0], p[1], p[2]))) > 38) continue; // busy background (image/gradient edge)
+    const bg: [number, number, number, number] = [
+      median(ring.map((p) => p[0])),
+      median(ring.map((p) => p[1])),
+      median(ring.map((p) => p[2])),
+      1,
+    ];
+    const a = fg[3];
+    const blended: [number, number, number, number] = [0, 1, 2]
+      .map((c) => fg[c] * a + bg[c] * (1 - a))
+      .concat(1) as never;
+    const ratio = contrastRatio(blended, bg);
+    const needed = t.font >= 48 ? 3 : 4.5;
+    if (ratio < needed) lowContrast.push({ t, ratio, needed });
+  }
+  return { unpainted, lowContrast };
 }
 
 async function isBlank(file: string): Promise<boolean> {
@@ -346,8 +423,7 @@ function markdown(r: ReviewResult, history: { at: string; score: number }[]): st
 **Automated score: ${r.score}/100 — ${verdict}**${trend}
 Errors: ${r.counts.error} · Warnings: ${r.counts.warn} · Info: ${r.counts.info} · Length: ${r.durationSeconds.toFixed(1)}s
 
-- Contact sheet: \`${r.sheet}\`
-- Annotated sheet (red = error, orange = warning, blue dashes = platform UI): \`${r.annotatedSheet}\`
+- Contact sheet (issues boxed: red = error, orange = warning; blue dashes = platform UI): \`${r.sheet}\`
 ${section('Errors (must fix)', bySeverity('error'))}${section('Warnings', bySeverity('warn'))}${section('Info', bySeverity('info'))}
 ## Frames
 
@@ -385,6 +461,7 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
     extraFrames: [hookFrame],
     outDir: join(dir, 'frames'),
     audit: true,
+    sheet: false,
   });
   const { fps, durationInFrames, props } = stills;
   const findings: Finding[] = [];
@@ -441,7 +518,21 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
         box: iss.box,
       });
     }
-    for (const t of await unpaintedTexts(file, audit)) {
+    const px = pixelChecks(await loadRaw(file), audit);
+    for (const { t, ratio, needed } of px.lowContrast) {
+      const message = `"${t.text}" contrast ${ratio.toFixed(1)}:1 against what is behind it (needs ${needed}:1)`;
+      issues.push({ rule: 'low-contrast', severity: 'warn', message, box: t.box });
+      findings.push({
+        rule: 'low-contrast',
+        severity: 'warn',
+        message,
+        fix: FIX['low-contrast'],
+        frame,
+        scene,
+        box: t.box,
+      });
+    }
+    for (const t of px.unpainted) {
       const issue: AuditIssue = {
         rule: 'text-clipped',
         severity: 'error',
@@ -469,9 +560,10 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
         fix: FIX['blank-frame'],
       });
     }
+    // Only frames with issues get an annotated copy; the sheet uses it in place.
     const annotated = join(dir, 'annotated', `frame-${String(frame).padStart(5, '0')}.png`);
-    await annotate(file, annotated, issues);
-    annotatedFiles.push(annotated);
+    if (issues.length) await annotate(file, annotated, issues);
+    annotatedFiles.push(issues.length ? annotated : file);
     frames.push({
       frame,
       time: frame / fps,
@@ -483,9 +575,7 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
   }
 
   const sheet = join(dir, 'sheet.png');
-  const annotatedSheet = join(dir, 'sheet-annotated.png');
-  await contactSheet(stills.files, sheet, stills.frames, fps);
-  await contactSheet(annotatedFiles, annotatedSheet, stills.frames, fps);
+  await contactSheet(annotatedFiles, sheet, stills.frames, fps);
 
   const { score, counts, passed } = scoreFindings(findings);
   const historyPath = join(dir, 'history.json');
@@ -504,7 +594,6 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
     findings,
     frames,
     sheet: rel(sheet),
-    annotatedSheet: rel(annotatedSheet),
     report: rel(join(dir, 'report.md')),
   };
   writeFileSync(join(dir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
@@ -517,7 +606,7 @@ export async function reviewJob(job: LoadedJob, opts: { frames?: number[] } = {}
 export function narration(props: Record<string, unknown>): string {
   const scenes = Array.isArray(props.scenes) ? (props.scenes as Scene[]) : [];
   return scenes
-    .map((s) => stripAudioTags(String(s.voiceoverText ?? '')))
+    .map((s) => stripAudioTags(String(s.say ?? '')).replace(/\*/g, ''))
     .filter(Boolean)
     .join(' ');
 }

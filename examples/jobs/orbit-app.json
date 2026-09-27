@@ -1,0 +1,60 @@
+{
+  "template": "AppPromo",
+  "props": {
+    "brand": "orbit",
+    "scenes": [
+      {
+        "id": "hook",
+        "headline": "Freelance money, *finally* calm",
+        "say": "[confident] Freelance income is chaotic. Your money app should not be.",
+        "screen": {
+          "type": "balance",
+          "label": "Available",
+          "amount": 12480.5,
+          "delta": "+18% this month"
+        },
+        "callout": "Taxes set aside"
+      },
+      {
+        "id": "chart",
+        "headline": "See every *invoice* land",
+        "say": "Watch every invoice land in real time.",
+        "screen": {
+          "type": "chart",
+          "title": "Income",
+          "value": 8240,
+          "points": [
+            12,
+            18,
+            14,
+            26,
+            22,
+            34,
+            31,
+            44
+          ]
+        },
+        "callout": "Paid in 2 days"
+      },
+      {
+        "id": "notify",
+        "headline": "Paid? You will *know*",
+        "say": "And get a ping the second a client pays.",
+        "screen": {
+          "type": "notify",
+          "title": "Invoice #041 paid",
+          "body": "Studio Nord sent you $2,400.00"
+        }
+      },
+      {
+        "id": "cta",
+        "headline": "Get Orbit *free*",
+        "say": "[warmly] Start free today.",
+        "screen": {
+          "type": "splash"
+        },
+        "cta": true
+      }
+    ]
+  }
+}

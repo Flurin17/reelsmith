@@ -19,17 +19,11 @@ describe.skipIf(!enabled)('reelsmith review (render)', () => {
     expect(rules).toContain('speech-cut-off');
     expect(rules).toContain('reading-speed');
     expect(rules).toContain('scene-too-short');
-    expect(rules).toContain('low-contrast');
     expect(r.passed).toBe(false);
   }, 240_000);
 
   it('passes the shipped examples', async () => {
-    for (const file of [
-      'explainer-headphones',
-      'kinetic-desk-setup',
-      'spotlight-aurora-headphones',
-      'top-5-desk-upgrades',
-    ]) {
+    for (const file of ['kin-routine', 'lumen-explainer', 'nocturne-spotlight', 'orbit-app', 'volt-top-5']) {
       const r = await reviewJob(loadJob(join(__dirname, `../examples/jobs/${file}.json`)));
       expect({ file, errors: r.findings.filter((f) => f.severity === 'error') }).toEqual({ file, errors: [] });
       expect(r.passed).toBe(true);

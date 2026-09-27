@@ -10,12 +10,14 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { stripAudioTags } from '../src/core/captions';
+import { DEFAULT_BRAND } from '../brands';
 import { slugify } from '../src/core/text';
 import { TEMPLATES } from '../src/templates';
 import { BUILDERS } from './lib/builders';
 import { brandReport } from './lib/brand';
 import { loadCatalog } from './lib/catalog';
+import { contextText } from './lib/context';
+import { describeTemplate } from './lib/describe';
 import { removeWhiteBackground } from './lib/cutout';
 import { JOBS, OUT, PUBLIC, ROOT, rel } from './lib/env';
 import { getTemplate, loadJob, parsedProps, writeJob } from './lib/jobs';
@@ -25,37 +27,30 @@ import { generateSfx } from './lib/sfx';
 import { generateVoiceovers } from './lib/voiceover';
 import { audition, libraryVoices, workspaceVoices } from './lib/voices';
 
-const HELP = `reelsmith — brandable short-form video generator
+const HELP = `reelsmith — on-brand short-form video, driven by agents
 
-Discover
-  list                              Templates with one-line descriptions
-  brand                             Brand tokens + contrast check of every color pair
-  describe <Template> [--json]      Props JSON Schema + an example job
-  catalog [--category <text>]       Products from the configured catalog
+Orient
+  context                           Where to edit what, brands, templates, the loop (start here)
+  describe <Template> [--json]      Compact props signature + example job
+  brand [id]                        Brand tokens + contrast check
+  catalog [--brand id] [--category x] [--json]
 
 Create jobs (jobs/<slug>.json)
-  new <Template> <slug>             Start from the template's example props
-  make <Template> [flags]           Build from catalog data (ProductSpotlight, TopList)
-  validate <job...>                 Check job files against their template schema
+  new <Template> <slug> [--brand id]      Minimal example job to edit
+  make <Template> [--brand id] [flags]    From the brand catalog (ProductSpotlight, TopList)
+  validate <job...>
 
 Produce
-  voiceover <job> [--scene id] [--force] [--dry-run] [--keep-from]
-                                    One TTS clip per scene + captions + scene durations
-  stills <job> [--frames 0,90] [--out dir]
-                                    Key frames + contact sheet (out/stills/<slug>/sheet.png)
-  review <job> [--frames 0,90] [--json] [--strict]
-                                    Grade a job: audited key frames, asset/timing/brand checks,
-                                    score + annotated sheet (out/review/<slug>/report.md)
-  render <job...> [--draft] [--out dir] [--allow-missing]
-                                    MP4 to out/<slug>.mp4 (--draft: half size, fast)
+  voiceover <job> [--scene id] [--force] [--dry-run]   TTS per scene → clip + timing sidecar
+  review <job> [--frames 0,90] [--json] [--strict]     Graded key frames → out/review/<slug>/
+  stills <job> [--frames 0,90]                         Just the frames + sheet
+  render <job...> [--draft] [--allow-missing]          MP4 → out/<slug>.mp4
 
 Assets
-  voices [--language en] [--gender female] [--search text] [--workspace] [--json]
-  audition <voiceId[,voiceId]> [--text "..."]
-  sfx                               Regenerate the royalty-free SFX set in public/sfx
-  cutout <in> <out.png>             Remove a flat white background from a product photo
+  voices [--language en] [--gender female] [--workspace] · audition <id[,id]>
+  sfx · cutout <in> <out.png>
 
-Run \`pnpm studio\` to preview and tweak any job visually in Remotion Studio.`;
+\`pnpm studio\` opens Remotion Studio for humans.`;
 
 function flags(argv: string[]) {
   return parseArgs({
@@ -66,13 +61,13 @@ function flags(argv: string[]) {
       json: { type: 'boolean' },
       force: { type: 'boolean' },
       'dry-run': { type: 'boolean' },
-      'keep-from': { type: 'boolean' },
       draft: { type: 'boolean' },
       refresh: { type: 'boolean' },
       workspace: { type: 'boolean' },
       strict: { type: 'boolean' },
       'allow-missing': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
+      brand: { type: 'string' },
       // String options must be declared, otherwise `--flag value` parses as a boolean + positional.
       ...Object.fromEntries(
         [
@@ -115,6 +110,10 @@ async function main() {
       console.log(HELP);
       return;
 
+    case 'context':
+      console.log(contextText());
+      return;
+
     case 'list':
       for (const t of TEMPLATES) {
         console.log(
@@ -124,10 +123,11 @@ async function main() {
       return;
 
     case 'brand': {
-      const { lines, failures } = brandReport();
+      const id = positionals[0] ?? str(v.brand) ?? DEFAULT_BRAND;
+      const { lines, failures } = brandReport(id);
       console.log(lines.join('\n'));
       if (failures) {
-        console.log(`\n${failures} pair(s) below the minimum — adjust colors in reelsmith.config.ts.`);
+        console.log(`\n${failures} pair(s) below the minimum — adjust colors in brands/${id}/theme.ts.`);
         process.exitCode = 1;
       }
       return;
@@ -135,23 +135,17 @@ async function main() {
 
     case 'describe': {
       const template = getTemplate(need(positionals[0], 'describe <Template>'));
-      const schema = z.toJSONSchema(template.schema, { io: 'input', unrepresentable: 'any' });
-      const example = { template: template.id, props: template.defaultProps };
       if (v.json) {
-        console.log(JSON.stringify({ id: template.id, description: template.description, schema, example }, null, 2));
-      } else {
+        const schema = z.toJSONSchema(template.schema, { io: 'input', unrepresentable: 'any' });
         console.log(
-          `${template.id} — ${template.description}\n\nProps schema (input; fields with defaults are optional):`,
+          JSON.stringify({ id: template.id, description: template.description, schema, example: template.example }),
         );
-        console.log(JSON.stringify(schema, null, 2));
-        console.log('\nExample job:');
-        console.log(JSON.stringify(example, null, 2));
-      }
+      } else console.log(describeTemplate(template));
       return;
     }
 
     case 'catalog': {
-      const products = await loadCatalog();
+      const products = await loadCatalog(str(v.brand));
       const needle = str(v.category)?.toLowerCase();
       const shown = needle ? products.filter((p) => p.category.toLowerCase().includes(needle)) : products;
       if (v.json) console.log(JSON.stringify(shown, null, 2));
@@ -168,10 +162,10 @@ async function main() {
       const slug = slugify(need(positionals[1], 'new <Template> <slug>'));
       const path = join(JOBS, `${slug}.json`);
       if (existsSync(path) && !v.force) throw new Error(`${rel(path)} exists (use --force to overwrite)`);
-      const props = structuredClone(template.defaultProps) as Record<string, unknown>;
-      if ('topic' in props) props.topic = slug;
+      const props = structuredClone(template.example);
+      if (str(v.brand)) props.brand = str(v.brand);
       writeJob(path, { template: template.id, props });
-      console.log(`✓ ${rel(path)} — edit the props, then: pnpm reelsmith stills ${slug}`);
+      console.log(`✓ ${rel(path)} — edit it, then: pnpm reelsmith review ${rel(path)}`);
       return;
     }
 
@@ -182,6 +176,7 @@ async function main() {
       if (!builder)
         throw new Error(`${id} has no catalog builder. Use \`reelsmith new ${id} <slug>\` and edit the props.`);
       const { job, slug } = await builder.build({
+        brand: str(v.brand),
         product: str(v.product),
         hook: str(v.hook),
         ids: str(v.ids),
@@ -222,11 +217,7 @@ async function main() {
         scene: str(v.scene),
         force: Boolean(v.force),
         dryRun: Boolean(v['dry-run']),
-        keepFrom: Boolean(v['keep-from']),
       });
-      const scenes = (parsedProps(job).scenes ?? []) as { id: string; voiceoverText?: string }[];
-      const spoken = scenes.map((s) => stripAudioTags(s.voiceoverText ?? '')).filter(Boolean);
-      if (spoken.length) console.log(`  script: ${spoken.join(' ')}`);
       return;
     }
 
@@ -263,11 +254,8 @@ async function main() {
           );
         if (r.findings.length > top.length) console.log(`  … see the report for all ${r.findings.length} findings`);
         const script = narration(parsedProps(job));
-        if (script) console.log(`\nNarration: ${script}`);
-        console.log(
-          `\nReport:          ${r.report}\nContact sheet:   ${r.sheet}\nAnnotated sheet: ${r.annotatedSheet}`,
-        );
-        console.log('Next: view the sheets, score the visual rubric in the report, fix, and review again.');
+        if (script) console.log(`script: ${script}`);
+        console.log(`look at: ${r.sheet}   (full frames: out/review/${job.slug}/frames/, report: ${r.report})`);
       }
       if (v.strict && !r.passed) process.exitCode = 1;
       return;
